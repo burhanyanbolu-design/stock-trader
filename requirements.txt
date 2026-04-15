@@ -1,0 +1,11 @@
+flask
+alpaca-trade-api
+pandas
+numpy
+ta
+python-dotenv
+flask-cors
+apscheduler
+requests
+pytz
+openai

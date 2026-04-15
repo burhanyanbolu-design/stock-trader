@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoTrader Dashboard</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',sans-serif; background:#0a0e1a; color:#e0e6f0; min-height:100vh; }
+
+  header { background:linear-gradient(135deg,#0d1b2a,#1a2d4a); padding:18px 30px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid rgba(255,255,255,0.08); }
+  header h1 { font-size:20px; font-weight:700; color:#4fc3f7; }
+  .mode-badge { background:#1b5e20; color:#69f0ae; font-size:12px; font-weight:700;
+    padding:4px 12px; border-radius:20px; letter-spacing:1px; }
+
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; padding:24px 30px 0; }
+  .card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px; padding:18px 20px; }
+  .card .label { font-size:11px; color:#7a8fa6; letter-spacing:1px; margin-bottom:6px; }
+  .card .value { font-size:28px; font-weight:700; }
+  .card .value.green { color:#69f0ae; }
+  .card .value.red   { color:#ff5252; }
+  .card .value.blue  { color:#4fc3f7; }
+  .card .value.gold  { color:#ffd740; }
+
+  .controls { padding:20px 30px; display:flex; gap:12px; align-items:center; }
+  .btn { padding:10px 28px; border-radius:30px; border:none; font-size:14px;
+    font-weight:700; cursor:pointer; transition:all 0.2s; letter-spacing:0.5px; }
+  .btn-start { background:linear-gradient(135deg,#00c853,#69f0ae); color:#000; }
+  .btn-start:hover { transform:scale(1.04); }
+  .btn-stop  { background:linear-gradient(135deg,#d50000,#ff5252); color:#fff; }
+  .btn-stop:hover  { transform:scale(1.04); }
+  .btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+  .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
+  .status-dot.on  { background:#69f0ae; box-shadow:0 0 8px #69f0ae; animation:pulse 1.5s infinite; }
+  .status-dot.off { background:#555; }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  .status-text { font-size:13px; color:#aaa; }
+  .error-msg { font-size:12px; color:#ff5252; margin-left:12px; }
+
+  .section { padding:0 30px 24px; }
+  .section h2 { font-size:14px; color:#7a8fa6; letter-spacing:2px; margin-bottom:12px; }
+
+  table { width:100%; border-collapse:collapse; }
+  th { font-size:11px; color:#7a8fa6; letter-spacing:1px; padding:8px 12px; text-align:left;
+    border-bottom:1px solid rgba(255,255,255,0.06); }
+  td { font-size:13px; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.04); }
+  tr:hover td { background:rgba(255,255,255,0.03); }
+  .pos  { color:#69f0ae; font-weight:700; }
+  .neg  { color:#ff5252; font-weight:700; }
+  .tag  { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; }
+  .tag.buy  { background:rgba(105,240,174,0.15); color:#69f0ae; }
+  .tag.sell { background:rgba(255,82,82,0.15);   color:#ff5252; }
+  .tag.fail { background:rgba(255,193,7,0.15);   color:#ffd740; }
+  .empty { color:#555; font-size:13px; padding:16px 12px; }
+
+  .last-run { font-size:11px; color:#555; margin-left:auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ AutoTrader — Stock Bot</h1>
+  <span class="mode-badge">📄 PAPER TRADING</span>
+</header>
+
+<!-- Stats -->
+<div class="grid">
+  <div class="card">
+    <div class="label">PORTFOLIO VALUE</div>
+    <div class="value blue" id="equity">$—</div>
+  </div>
+  <div class="card">
+    <div class="label">CASH AVAILABLE</div>
+    <div class="value gold" id="cash">$—</div>
+  </div>
+  <div class="card">
+    <div class="label">TODAY'S P&L</div>
+    <div class="value" id="pnl">$—</div>
+  </div>
+  <div class="card">
+    <div class="label">OPEN POSITIONS</div>
+    <div class="value blue" id="posCount">—</div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <span class="status-dot off" id="dot"></span>
+  <span class="status-text" id="statusText">Bot stopped</span>
+  <button class="btn btn-start" id="btnStart" onclick="startBot()">▶ Start Bot</button>
+  <button class="btn btn-stop"  id="btnStop"  onclick="stopBot()" disabled>⏹ Stop Bot</button>
+  <span class="error-msg" id="errMsg"></span>
+  <span class="last-run" id="lastRun"></span>
+</div>
+
+<!-- Positions -->
+<div class="section">
+  <h2>OPEN POSITIONS</h2>
+  <table>
+    <thead><tr><th>SYMBOL</th><th>QTY</th><th>ENTRY</th><th>CURRENT</th><th>P&L</th><th>%</th></tr></thead>
+    <tbody id="posTable"><tr><td class="empty" colspan="6">No open positions</td></tr></tbody>
+  </table>
+</div>
+
+<!-- Trade log -->
+<div class="section">
+  <h2>RECENT TRADES</h2>
+  <table>
+    <thead><tr><th>TIME</th><th>SYMBOL</th><th>ACTION</th><th>QTY</th><th>STATUS</th></tr></thead>
+    <tbody id="tradeTable"><tr><td class="empty" colspan="5">No trades yet</td></tr></tbody>
+  </table>
+</div>
+
+<script>
+async function startBot() {
+  await fetch('/api/start', {method:'POST'});
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnStop').disabled  = false;
+}
+async function stopBot() {
+  await fetch('/api/stop', {method:'POST'});
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStop').disabled  = true;
+}
+
+function fmt(n) { return n >= 0 ? `+$${n.toFixed(2)}` : `-$${Math.abs(n).toFixed(2)}`; }
+
+async function refresh() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+
+    document.getElementById('equity').textContent  = `$${parseFloat(d.equity).toFixed(2)}`;
+    document.getElementById('cash').textContent    = `$${parseFloat(d.cash).toFixed(2)}`;
+
+    const pnlEl = document.getElementById('pnl');
+    pnlEl.textContent  = fmt(d.daily_pnl);
+    pnlEl.className    = `value ${d.daily_pnl >= 0 ? 'green' : 'red'}`;
+
+    document.getElementById('posCount').textContent = d.positions.length;
+    document.getElementById('lastRun').textContent  = d.last_run ? `Last scan: ${d.last_run}` : '';
+    document.getElementById('errMsg').textContent   = d.error || '';
+
+    const dot  = document.getElementById('dot');
+    const stxt = document.getElementById('statusText');
+    dot.className  = `status-dot ${d.running ? 'on' : 'off'}`;
+    stxt.textContent = d.running ? 'Bot running — scanning every 5 min' : 'Bot stopped';
+    document.getElementById('btnStart').disabled = d.running;
+    document.getElementById('btnStop').disabled  = !d.running;
+
+    // Positions
+    const pt = document.getElementById('posTable');
+    if (d.positions.length === 0) {
+      pt.innerHTML = '<tr><td class="empty" colspan="6">No open positions</td></tr>';
+    } else {
+      pt.innerHTML = d.positions.map(p => `
+        <tr>
+          <td><strong>${p.symbol}</strong></td>
+          <td>${p.qty}</td>
+          <td>$${p.entry.toFixed(2)}</td>
+          <td>$${p.current.toFixed(2)}</td>
+          <td class="${p.pnl>=0?'pos':'neg'}">${fmt(p.pnl)}</td>
+          <td class="${p.pnl_pct>=0?'pos':'neg'}">${p.pnl_pct.toFixed(2)}%</td>
+        </tr>`).join('');
+    }
+
+    // Trades
+    const tt = document.getElementById('tradeTable');
+    if (d.trades.length === 0) {
+      tt.innerHTML = '<tr><td class="empty" colspan="5">No trades yet</td></tr>';
+    } else {
+      tt.innerHTML = [...d.trades].reverse().map(t => {
+        const cls = t.action==='BUY' ? 'buy' : t.status.includes('FAIL') ? 'fail' : 'sell';
+        return `<tr>
+          <td>${t.time}</td>
+          <td><strong>${t.symbol}</strong></td>
+          <td><span class="tag ${cls}">${t.action}</span></td>
+          <td>${t.qty}</td>
+          <td>${t.status}</td>
+        </tr>`;
+      }).join('');
+    }
+  } catch(e) { console.error(e); }
+}
+
+refresh();
+setInterval(refresh, 10000); // refresh every 10 seconds
+</script>
+</body>
+</html>
