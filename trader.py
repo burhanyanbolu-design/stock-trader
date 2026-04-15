@@ -385,8 +385,8 @@ def run_cycle():
     # ── Parallel signal scan — throttled to avoid Alpaca connection pool exhaustion ──
     watchlist = get_current_watchlist() or WATCHLIST
     signals   = []
-    # Max 8 workers — keeps within Alpaca connection pool limit of 10
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    # 4 workers max — Alpaca free tier has 10 connection limit, 3 calls per symbol
+    with ThreadPoolExecutor(max_workers=4) as pool:
         futures = {pool.submit(_fetch_signal, sym): sym for sym in watchlist}
         for future in as_completed(futures):
             result = future.result()

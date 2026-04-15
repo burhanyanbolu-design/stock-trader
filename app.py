@@ -283,7 +283,7 @@ def get_signals():
                         'ema': '-', 'patterns': [str(e)], 'slc': '-', 'tier': '-'}
 
         results = []
-        with ThreadPoolExecutor(max_workers=8) as pool:
+        with ThreadPoolExecutor(max_workers=4) as pool:
             futures = {pool.submit(fetch_one, sym): sym for sym in trader.WATCHLIST}
             for future in as_completed(futures):
                 results.append(future.result())
