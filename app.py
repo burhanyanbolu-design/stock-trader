@@ -43,6 +43,10 @@ scheduler.start()
 def index():
     return send_from_directory(os.path.join(BASE_DIR, 'templates'), 'index.html')
 
+@app.route('/live')
+def live():
+    return send_from_directory(os.path.join(BASE_DIR, 'templates'), 'live.html')
+
 @app.route('/api/start', methods=['POST'])
 def start():
     global bot_thread

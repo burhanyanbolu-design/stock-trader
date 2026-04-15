@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hardin AI — Live Trading</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Segoe UI',sans-serif;background:#050810;color:#e0e6f0;min-height:100vh;}
+  header{background:linear-gradient(135deg,#0d1b2a,#1a2d4a);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,229,255,0.15);}
+  .logo{font-size:18px;font-weight:700;color:#00e5ff;letter-spacing:2px;}
+  .live-badge{background:rgba(255,82,82,0.15);border:1px solid rgba(255,82,82,0.4);color:#ff5252;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:2px;display:flex;align-items:center;gap:6px;}
+  .live-dot{width:8px;height:8px;background:#ff5252;border-radius:50%;animation:pulse 1.2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}
+  .big-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px 28px 0;}
+  .big-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px 24px;}
+  .big-card .lbl{font-size:10px;color:#7a8fa6;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+  .big-card .val{font-size:36px;font-weight:700;line-height:1;}
+  .green{color:#69f0ae;} .red{color:#ff5252;} .blue{color:#4fc3f7;} .gold{color:#ffd740;}
+  .section{padding:16px 28px 0;}
+  .section h2{font-size:10px;color:#7a8fa6;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.05);}
+  table{width:100%;border-collapse:collapse;}
+  th{font-size:10px;color:#7a8fa6;letter-spacing:1px;padding:7px 10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.06);}
+  td{font-size:13px;padding:10px;border-bottom:1px solid rgba(255,255,255,0.04);}
+  .pos{color:#69f0ae;font-weight:700;} .neg{color:#ff5252;font-weight:700;}
+  .empty{color:#555;font-size:12px;padding:16px 10px;}
+  .tag{font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;}
+  .tag.BUY{background:rgba(105,240,174,0.15);color:#69f0ae;} .tag.SELL{background:rgba(255,82,82,0.15);color:#ff5252;}
+  .chart-box{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;}
+  .chart-sym-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#e0e6f0;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+  .chart-sym-btn.active{background:rgba(79,195,247,0.15);border-color:rgba(79,195,247,0.6);color:#4fc3f7;}
+  tr.clickable{cursor:pointer;} tr.clickable:hover td{background:rgba(79,195,247,0.05);}
+  .target-bar-wrap{margin-top:8px;background:rgba(255,255,255,0.06);border-radius:4px;height:6px;overflow:hidden;}
+  .target-bar{height:6px;background:#69f0ae;border-radius:4px;width:0%;transition:width 0.5s;}
+  .target-lbl{font-size:10px;color:#555;margin-top:4px;}
+  .footer{text-align:center;padding:16px;font-size:10px;color:#333;letter-spacing:1px;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 28px 0;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡ HARDIN AI — LIVE TRADING</div>
+  <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+</header>
+
+<!-- Big stats -->
+<div class="big-grid">
+  <div class="big-card">
+    <div class="lbl">Portfolio Value</div>
+    <div class="val blue" id="equity">$—</div>
+  </div>
+  <div class="big-card">
+    <div class="lbl">Today's P&L</div>
+    <div class="val" id="pnl">$—</div>
+  </div>
+  <div class="big-card">
+    <div class="lbl">Daily Target</div>
+    <div class="val green" id="targetVal">$—</div>
+    <div class="target-bar-wrap"><div class="target-bar" id="targetBar"></div></div>
+    <div class="target-lbl" id="targetLbl">0% of target</div>
+  </div>
+  <div class="big-card">
+    <div class="lbl">Open Positions</div>
+    <div class="val blue" id="posCount">—</div>
+  </div>
+</div>
+
+<!-- Chart -->
+<div class="section">
+  <h2>🕯️ Live Chart — click a position</h2>
+  <div class="chart-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+      <div>
+        <span id="chartSymbolLabel" style="font-size:16px;font-weight:700;color:#4fc3f7;">—</span>
+        <span id="chartPriceLabel" style="font-size:13px;color:#aaa;margin-left:8px;"></span>
+        <span id="chartChangeLabel" style="font-size:12px;font-weight:700;margin-left:6px;"></span>
+      </div>
+      <div style="display:flex;gap:4px;" id="chartSymbolBtns"></div>
+    </div>
+    <div id="candleMomentum" style="margin-bottom:6px;font-size:11px;min-height:22px;"></div>
+    <canvas id="candleChart" style="width:100%;display:block;" height="180"></canvas>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-top:3px;" id="candleTimeLabels"></div>
+    <canvas id="volumeChart" style="width:100%;display:block;margin-top:3px;" height="30"></canvas>
+  </div>
+</div>
+
+<!-- Two columns: positions + trades -->
+<div class="two-col">
+  <div>
+    <div style="font-size:10px;color:#7a8fa6;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.05);">💼 Open Positions</div>
+    <table>
+      <thead><tr><th>SYMBOL</th><th>QTY</th><th>ENTRY</th><th>CURRENT</th><th>P&L</th><th>%</th></tr></thead>
+      <tbody id="posTable"><tr><td class="empty" colspan="6">No open positions</td></tr></tbody>
+    </table>
+  </div>
+  <div>
+    <div style="font-size:10px;color:#7a8fa6;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.05);">📋 Recent Trades</div>
+    <table>
+      <thead><tr><th>TIME</th><th>SYMBOL</th><th>ACTION</th><th>QTY</th><th>P&L</th></tr></thead>
+      <tbody id="tradeTable"><tr><td class="empty" colspan="5">No trades yet</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">HARDIN AI SOLUTIONS · hardinai.co.uk · READ-ONLY VIEW · Auto-refreshes every 10s</div>
+
+<script>
+function fmt(n){return n>=0?`+${Math.abs(n).toFixed(2)}`:`-${Math.abs(n).toFixed(2)}`;}
+
+async function refresh(){
+  try{
+    const d=await(await fetch('/api/status')).json();
+    document.getElementById('equity').textContent='$'+parseFloat(d.equity).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const pe=document.getElementById('pnl');pe.textContent=fmt(d.daily_pnl);pe.className=`val ${d.daily_pnl>=0?'green':'red'}`;
+    const tgt=d.daily_target||1000;const pct=Math.min(Math.max(d.daily_pnl/tgt*100,0),100);
+    document.getElementById('targetVal').textContent=`$${d.daily_pnl.toFixed(2)} / $${tgt}`;
+    document.getElementById('targetBar').style.width=pct+'%';
+    document.getElementById('targetBar').style.background=d.target_hit?'#ffd740':'#69f0ae';
+    document.getElementById('targetLbl').textContent=d.target_hit?'🎯 TARGET HIT':`${pct.toFixed(0)}% of daily target`;
+    document.getElementById('posCount').textContent=d.positions.length;
+    const pt=document.getElementById('posTable');
+    pt.innerHTML=d.positions.length===0?'<tr><td class="empty" colspan="6">No open positions</td></tr>':d.positions.map(p=>{addChartButton(p.symbol);return `<tr class="clickable" onclick="loadChart('${p.symbol}')"><td><strong style="color:#4fc3f7;">${p.symbol}</strong></td><td>${p.qty}</td><td>${p.entry.toFixed(2)}</td><td>${p.current.toFixed(2)}</td><td class="${p.pnl>=0?'pos':'neg'}">${fmt(p.pnl)}</td><td class="${p.pnl_pct>=0?'pos':'neg'}">${p.pnl_pct.toFixed(2)}%</td></tr>`;}).join('');
+    const tt=document.getElementById('tradeTable');
+    tt.innerHTML=d.trades.length===0?'<tr><td class="empty" colspan="5">No trades yet</td></tr>':[...d.trades].reverse().slice(0,10).map(t=>`<tr><td>${t.time}</td><td><strong>${t.symbol}</strong></td><td><span class="tag ${t.action}">${t.action}</span></td><td>${t.qty}</td><td class="${(t.pnl||0)>=0?'pos':'neg'}">${t.pnl!=null?fmt(t.pnl):'—'}</td></tr>`).join('');
+  }catch(e){console.error(e);}
+}
+
+let currentSymbol=null,currentTF='5Min';
+function addChartButton(symbol){const c=document.getElementById('chartSymbolBtns');if(document.querySelector(`.chart-sym-btn[data-sym="${symbol}"]`))return;const b=document.createElement('button');b.className='chart-sym-btn';b.dataset.sym=symbol;b.textContent=symbol;b.onclick=()=>loadChart(symbol);c.appendChild(b);}
+async function loadChart(symbol){
+  currentSymbol=symbol;document.getElementById('chartSymbolLabel').textContent=symbol;document.getElementById('chartPriceLabel').textContent='Loading…';
+  document.querySelectorAll('.chart-sym-btn').forEach(b=>b.classList.toggle('active',b.dataset.sym===symbol));
+  try{
+    const bars=await(await fetch(`/api/bars/${symbol}?tf=${currentTF}&limit=60`)).json();
+    if(!bars||bars.error||bars.length<2){document.getElementById('chartPriceLabel').textContent='No data';return;}
+    drawChart(bars);
+  }catch(e){}
+}
+function drawChart(bars){
+  const cv=document.getElementById('candleChart'),vc=document.getElementById('volumeChart');
+  const W=cv.parentElement.offsetWidth-28;cv.width=W;cv.height=180;vc.width=W;vc.height=30;
+  const ctx=cv.getContext('2d'),vctx=vc.getContext('2d');ctx.clearRect(0,0,W,180);vctx.clearRect(0,0,W,30);
+  const pad={l:6,r:60,t:10,b:10};const cW=W-pad.l-pad.r;const cH=180-pad.t-pad.b;
+  const maxP=Math.max(...bars.map(b=>b.high)),minP=Math.min(...bars.map(b=>b.low)),range=maxP-minP||1;
+  const maxV=Math.max(...bars.map(b=>b.volume||0))||1;
+  const sp=cW/bars.length,cw=Math.max(2,sp-2);
+  const toY=p=>pad.t+cH-((p-minP)/range)*cH,toX=i=>pad.l+i*sp+sp/2;
+  ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
+  for(let i=0;i<=3;i++){const y=pad.t+(cH/3)*i;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();ctx.fillStyle='#555';ctx.font='9px monospace';ctx.textAlign='left';ctx.fillText((maxP-(range/3)*i).toFixed(2),W-pad.r+3,y+3);}
+  bars.forEach((b,i)=>{const x=toX(i),bull=b.close>=b.open;ctx.strokeStyle=bull?'#69f0ae':'#ff5252';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,toY(b.high));ctx.lineTo(x,toY(b.low));ctx.stroke();const bT=Math.min(toY(b.open),toY(b.close)),bH=Math.max(Math.abs(toY(b.close)-toY(b.open)),1);ctx.fillStyle=bull?'rgba(105,240,174,0.85)':'rgba(255,82,82,0.85)';ctx.fillRect(x-cw/2,bT,cw,bH);vctx.fillStyle=bull?'rgba(105,240,174,0.5)':'rgba(255,82,82,0.5)';vctx.fillRect(x-cw/2,30-((b.volume||0)/maxV)*26,cw,((b.volume||0)/maxV)*26);});
+  const last3=bars.slice(-3);const aB=last3.every(b=>b.close>b.open)&&last3[1].close>last3[0].close&&last3[2].close>last3[1].close;const aBr=last3.every(b=>b.close<b.open)&&last3[1].close<last3[0].close&&last3[2].close<last3[1].close;
+  if(aB||aBr){ctx.strokeStyle=aB?'rgba(105,240,174,0.5)':'rgba(255,82,82,0.5)';ctx.lineWidth=2;for(let i=bars.length-3;i<bars.length;i++){const b=bars[i],x=toX(i),bT=Math.min(toY(b.open),toY(b.close)),bH=Math.max(Math.abs(toY(b.close)-toY(b.open)),1);ctx.strokeRect(x-cw/2-2,bT-2,cw+4,bH+4);}}
+  const last=bars[bars.length-1],py=toY(last.close);ctx.strokeStyle='#4fc3f7';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(W-pad.r,py);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#4fc3f7';ctx.font='bold 10px monospace';ctx.textAlign='left';ctx.fillText(last.close.toFixed(2),W-pad.r+3,py+3);
+  const step=Math.max(1,Math.floor(bars.length/8));const lEl=document.getElementById('candleTimeLabels');lEl.innerHTML='';for(let i=0;i<bars.length;i+=step){const t=bars[i].time?new Date(bars[i].time).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}):'';const s=document.createElement('span');s.textContent=t;lEl.appendChild(s);}
+  const first=bars[0],ch=last.close-first.open,pct=(ch/first.open*100).toFixed(2);
+  document.getElementById('chartPriceLabel').textContent=`$${last.close.toFixed(2)}`;
+  const chEl=document.getElementById('chartChangeLabel');chEl.textContent=`${ch>=0?'+':''}${ch.toFixed(2)} (${pct}%)`;chEl.style.color=ch>=0?'#69f0ae':'#ff5252';
+  const mEl=document.getElementById('candleMomentum');
+  if(aB)mEl.innerHTML=`<span style="background:rgba(105,240,174,0.15);border:1px solid rgba(105,240,174,0.4);color:#69f0ae;padding:3px 12px;border-radius:20px;font-weight:700;font-size:11px;">▲▲▲ 3-CANDLE BULL RUN</span>`;
+  else if(aBr)mEl.innerHTML=`<span style="background:rgba(255,82,82,0.15);border:1px solid rgba(255,82,82,0.4);color:#ff5252;padding:3px 12px;border-radius:20px;font-weight:700;font-size:11px;">▼▼▼ 3-CANDLE BEAR RUN</span>`;
+  else mEl.innerHTML=`<span style="color:#555;font-size:11px;">Watching for momentum…</span>`;
+}
+setInterval(()=>{if(currentSymbol)loadChart(currentSymbol);},30000);
+refresh();setInterval(refresh,10000);
+</script>
+</body>
+</html>
