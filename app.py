@@ -175,6 +175,7 @@ def get_bars(symbol):
 
 
 
+@app.route('/api/daily-summary')
 def daily_summary():
     """Returns today's trade performance summary from the trade log."""
     try:
@@ -242,6 +243,7 @@ def daily_summary():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/signals')
 def get_signals():
     try:
         from strategies import get_signal_detail, slc_signal
