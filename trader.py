@@ -354,9 +354,9 @@ def run_cycle():
             status['error'] = f"Target hit! Locked in ${pnl:.2f} profit for today."
         return
 
-    # ── Trailing stop ──
+    # ── Trailing stop — only kicks in if we're very close to target ──
     peak = status['daily_pnl_peak']
-    if peak >= DAILY_PROFIT_TARGET * 0.5 and pnl < peak - TRAILING_STOP_PCT * peak / 100:
+    if peak >= DAILY_PROFIT_TARGET * 0.85 and pnl < peak * 0.80:
         if not status['target_hit']:
             log.warning(f"Trailing stop: peak ${peak:.2f} → now ${pnl:.2f}")
             status['target_hit'] = True
