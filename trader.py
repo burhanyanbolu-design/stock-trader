@@ -34,35 +34,26 @@ TRADE_LOG_FILE      = os.getenv('TRADE_LOG_FILE', 'trade_log.jsonl')
 
 # Broad watchlist — fallback when AI is unavailable
 WATCHLIST = [
-    # Mega-cap tech — highest volume, most momentum
-    'AAPL','MSFT','GOOGL','AMZN','NVDA','META','AMD','TSLA','INTC','CRM',
-    'ORCL','ADBE','NOW','INTU','CSCO','IBM',
-    # Broad ETFs — always liquid
-    'SPY','QQQ','IWM','DIA','XLK','XLF','XLE','XLV','XLY','ARKK','SMH','SOXX',
+    # Mega-cap tech — highest volume daily movers
+    'AAPL','MSFT','NVDA','TSLA','META','GOOGL','AMZN','AMD',
+    # Broad ETFs — always liquid, great for momentum
+    'SPY','QQQ','IWM','ARKK','SMH',
     # Finance
-    'JPM','BAC','GS','MS','WFC','C','BLK','SCHW',
+    'JPM','BAC','GS',
     # Energy
-    'XOM','CVX','COP','SLB','OXY',
+    'XOM','CVX',
     # Healthcare
-    'JNJ','UNH','PFE','ABBV','MRK','LLY',
-    # Consumer
-    'NFLX','DIS','NKE','SBUX','MCD','WMT','COST','HD','AMZN','BKNG',
-    # Semiconductors
-    'QCOM','MU','AVGO','TXN','AMAT','LRCX',
+    'UNH','LLY',
     # Growth / momentum
-    'PLTR','UBER','SHOP','CRWD','DDOG','NET','PANW','SNOW','COIN','MSTR',
+    'PLTR','CRWD','COIN','MSTR','SHOP','NET','PANW',
     # Fintech
-    'V','MA','PYPL','SQ',
-    # Defence / industrial
-    'LMT','RTX','BA','CAT','GE',
-    # Gold / commodities
-    'GLD','SLV','GDX',
+    'V','MA',
+    # Defence
+    'LMT','RTX',
+    # Gold
+    'GLD','GDX',
     # Airlines
-    'DAL','UAL','AAL',
-    # EV / clean energy
-    'RIVN','ENPH','FSLR',
-    # China
-    'BABA','NIO','BIDU',
+    'DAL','UAL',
 ]
 
 api = None
