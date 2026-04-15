@@ -147,149 +147,27 @@ def get_macro():
         return jsonify({'error': str(e), 'conditions': [], 'notes': '', 'watchlist': []})
 
 
-@app.route('/api/bars/<symbol>')
-def get_bars(symbol):
-    """Returns OHLCV bars for candlestick chart."""
-    try:
-        tf    = request.args.get('tf', '5Min')
-        limit = int(request.args.get('limit', 60))
-        bars  = trader.get_bars(symbol.upper(), tf, limit=limit)
-        if bars.empty:
-            return jsonify({'error': 'No data'})
-        bars = bars.reset_index()
-        # index col may be 'timestamp' or 'time'
-        time_col = 'timestamp' if 'timestamp' in bars.columns else bars.columns[0]
-        result = []
-        for _, row in bars.iterrows():
-            result.append({
-                'time':   str(row[time_col]),
-                'open':   round(float(row['open']),  4),
-                'high':   round(float(row['high']),  4),
-                'low':    round(float(row['low']),   4),
-                'close':  round(float(row['close']), 4),
-                'volume': int(row['volume']) if 'volume' in row else 0,
-            })
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-
-@app.route('/api/daily-summary')
-def daily_summary():
-    """Returns today's trade performance summary from the trade log."""
-    try:
-        import json
-        from datetime import date
-        today = date.today().strftime('%Y-%m-%d')
-        trades_today = []
-
-        log_file = trader.TRADE_LOG_FILE
-        if os.path.exists(log_file):
-            with open(log_file, 'r') as f:
-                for line in f:
-                    try:
-                        t = json.loads(line.strip())
-                        if t.get('date') == today:
-                            trades_today.append(t)
-                    except:
-                        pass
-
-        # Also include in-memory trades for today
-        for t in trader.trade_log:
-            if t.get('date') == today and t not in trades_today:
-                trades_today.append(t)
-
-        # Calculate stats
-        sells = [t for t in trades_today if t['action'] == 'SELL' and t.get('pnl') is not None]
-        buys  = [t for t in trades_today if t['action'] == 'BUY']
-
-        total_pnl   = sum(t['pnl'] for t in sells)
-        wins        = [t for t in sells if t['pnl'] > 0]
-        losses      = [t for t in sells if t['pnl'] <= 0]
-        win_rate    = round(len(wins) / len(sells) * 100, 1) if sells else 0
-        avg_win     = round(sum(t['pnl'] for t in wins) / len(wins), 2) if wins else 0
-        avg_loss    = round(sum(t['pnl'] for t in losses) / len(losses), 2) if losses else 0
-        best_trade  = max(sells, key=lambda x: x['pnl']) if sells else None
-        worst_trade = min(sells, key=lambda x: x['pnl']) if sells else None
-
-        # Per-symbol breakdown
-        by_symbol = {}
-        for t in sells:
-            sym = t['symbol']
-            if sym not in by_symbol:
-                by_symbol[sym] = {'symbol': sym, 'trades': 0, 'pnl': 0, 'wins': 0}
-            by_symbol[sym]['trades'] += 1
-            by_symbol[sym]['pnl'] = round(by_symbol[sym]['pnl'] + t['pnl'], 2)
-            if t['pnl'] > 0:
-                by_symbol[sym]['wins'] += 1
-
-        return jsonify({
-            'date':          today,
-            'total_trades':  len(sells),
-            'total_buys':    len(buys),
-            'total_pnl':     round(total_pnl, 2),
-            'win_rate':      win_rate,
-            'wins':          len(wins),
-            'losses':        len(losses),
-            'avg_win':       avg_win,
-            'avg_loss':      avg_loss,
-            'best_trade':    best_trade,
-            'worst_trade':   worst_trade,
-            'by_symbol':     sorted(by_symbol.values(), key=lambda x: x['pnl'], reverse=True),
-            'all_trades':    trades_today,
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
 @app.route('/api/signals')
 def get_signals():
     try:
-        from strategies import get_signal_detail, slc_signal
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        def fetch_one(symbol):
-            try:
-                bars_1m  = trader.get_bars(symbol, '1Min',  limit=100)
-                bars_5m  = trader.get_bars(symbol, '5Min',  limit=50)
-                bars_htf = trader.get_bars(symbol, '1Hour', limit=60)
-                if bars_1m.empty:
-                    return {'symbol': symbol, 'signal': 'NO DATA', 'score': 0,
-                            'price': 0, 'rsi': 0, 'macd': '-', 'vwap': '-',
-                            'ema': '-', 'patterns': ['No data'], 'slc': '-', 'tier': '-'}
-                d = get_signal_detail(bars_1m)
-                d['symbol'] = symbol
-                d['price']  = round(float(bars_1m['close'].iloc[-1]), 2)
-                # SLC signal
-                sig_slc = slc_signal(bars_5m, bars_htf)
-                d['slc'] = sig_slc
-                # Confidence tier
-                score = d.get('score', 0)
-                if score >= 9 and sig_slc == 'BUY':
-                    d['tier'] = 'MAX'
-                elif score >= 7:
-                    d['tier'] = 'HIGH'
-                elif score >= 5:
-                    d['tier'] = 'MED'
-                elif score >= 3:
-                    d['tier'] = 'LOW'
-                else:
-                    d['tier'] = '-'
-                return d
-            except Exception as e:
-                return {'symbol': symbol, 'signal': 'ERROR', 'score': 0,
-                        'price': 0, 'rsi': 0, 'macd': '-', 'vwap': '-',
-                        'ema': '-', 'patterns': [str(e)], 'slc': '-', 'tier': '-'}
-
+        from strategies import get_signal_detail
         results = []
-        with ThreadPoolExecutor(max_workers=20) as pool:
-            futures = {pool.submit(fetch_one, sym): sym for sym in trader.WATCHLIST}
-            for future in as_completed(futures):
-                results.append(future.result())
-
-        # Sort: BUY first, then by score descending
-        results.sort(key=lambda x: (x['signal'] != 'BUY', -x.get('score', 0)))
+        for symbol in trader.WATCHLIST:
+            try:
+                bars = trader.get_bars(symbol)
+                if bars.empty:
+                    results.append({'symbol': symbol, 'signal': 'NO DATA', 'score': 0,
+                                    'price': 0, 'rsi': 0, 'macd': '-', 'vwap': '-',
+                                    'ema': '-', 'patterns': ['No data']})
+                    continue
+                d = get_signal_detail(bars)
+                d['symbol'] = symbol
+                d['price']  = round(float(bars['close'].iloc[-1]), 2)
+                results.append(d)
+            except Exception as e:
+                results.append({'symbol': symbol, 'signal': 'ERROR', 'score': 0,
+                                'price': 0, 'rsi': 0, 'macd': '-', 'vwap': '-',
+                                'ema': '-', 'patterns': [str(e)]})
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
