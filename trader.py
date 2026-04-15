@@ -171,9 +171,9 @@ def get_bars(symbol: str, timeframe='1Min', limit=100) -> pd.DataFrame:
 def get_bars_multi(symbol: str) -> dict:
     """Fetch 1m, 3m, 5m bars for multi-timeframe analysis with small delay to avoid pool exhaustion."""
     bars_1m = get_bars(symbol, '1Min', limit=100)
-    time.sleep(0.05)  # 50ms between calls per symbol
+    time.sleep(0.15)  # 150ms between calls per symbol
     bars_3m = get_bars(symbol, '3Min', limit=60)
-    time.sleep(0.05)
+    time.sleep(0.15)
     bars_5m = get_bars(symbol, '5Min', limit=50)
     return {'1m': bars_1m, '3m': bars_3m, '5m': bars_5m}
 
@@ -418,8 +418,8 @@ def run_cycle():
     # ── Parallel signal scan — throttled to avoid Alpaca connection pool exhaustion ──
     watchlist = get_current_watchlist() or WATCHLIST
     signals   = []
-    # Max 20 workers to scan larger watchlist efficiently
-    with ThreadPoolExecutor(max_workers=20) as pool:
+    # Max 8 workers — keeps within Alpaca connection pool limit of 10
+    with ThreadPoolExecutor(max_workers=8) as pool:
         futures = {pool.submit(_fetch_signal, sym): sym for sym in watchlist}
         for future in as_completed(futures):
             result = future.result()
