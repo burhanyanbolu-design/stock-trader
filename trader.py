@@ -23,9 +23,9 @@ BASE_URL   = os.getenv('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets')
 if BASE_URL and not BASE_URL.startswith('http'):
     BASE_URL = 'https://' + BASE_URL.lstrip('/')
 
-MAX_POS             = float(os.getenv('MAX_POSITION_SIZE', 20))
-MAX_DAILY_LOSS      = float(os.getenv('MAX_DAILY_LOSS', 30))
-MAX_OPEN            = int(os.getenv('MAX_OPEN_POSITIONS', 5))
+MAX_POS             = float(os.getenv('MAX_POSITION_SIZE', 10000))
+MAX_DAILY_LOSS      = float(os.getenv('MAX_DAILY_LOSS', 2000))
+MAX_OPEN            = int(os.getenv('MAX_OPEN_POSITIONS', 10))
 DAILY_PROFIT_TARGET = float(os.getenv('DAILY_PROFIT_TARGET', 25))
 STOP_LOSS_PCT       = float(os.getenv('STOP_LOSS_PCT', 1.2))
 TRAILING_STOP_PCT   = float(os.getenv('TRAILING_STOP_PCT', 0.5))
