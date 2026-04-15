@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 Flask dashboard for the stock trading bot.
 """
@@ -299,7 +298,6 @@ def get_signals():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(debug=False, host='0.0.0.0', port=port)
-=======
 """
 Flask dashboard for the stock trading bot.
 """
@@ -478,4 +476,3 @@ def get_signals():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(debug=False, host='0.0.0.0', port=port)
->>>>>>> a09b30d95e6542156d8f3f73dd77d892dac72e95
