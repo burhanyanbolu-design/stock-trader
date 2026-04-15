@@ -6,151 +6,172 @@
 <title>AutoTrader Dashboard</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Segoe UI',sans-serif; background:#0a0e1a; color:#e0e6f0; min-height:100vh; }
+  body { font-family:'Segoe UI',sans-serif; background:#0a0e1a; color:#e0e6f0; }
 
-  header { background:linear-gradient(135deg,#0d1b2a,#1a2d4a); padding:18px 30px;
+  header { background:linear-gradient(135deg,#0d1b2a,#1a2d4a); padding:16px 24px;
     display:flex; align-items:center; justify-content:space-between;
     border-bottom:1px solid rgba(255,255,255,0.08); }
-  header h1 { font-size:20px; font-weight:700; color:#4fc3f7; }
-  .mode-badge { background:#1b5e20; color:#69f0ae; font-size:12px; font-weight:700;
+  header h1 { font-size:18px; font-weight:700; color:#4fc3f7; }
+  .mode-badge { background:#1b5e20; color:#69f0ae; font-size:11px; font-weight:700;
     padding:4px 12px; border-radius:20px; letter-spacing:1px; }
 
-  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; padding:24px 30px 0; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:16px 24px 0; }
   .card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
-    border-radius:14px; padding:18px 20px; }
-  .card .label { font-size:11px; color:#7a8fa6; letter-spacing:1px; margin-bottom:6px; }
-  .card .value { font-size:28px; font-weight:700; }
-  .card .value.green { color:#69f0ae; }
-  .card .value.red   { color:#ff5252; }
-  .card .value.blue  { color:#4fc3f7; }
-  .card .value.gold  { color:#ffd740; }
+    border-radius:12px; padding:14px 16px; }
+  .card .label { font-size:10px; color:#7a8fa6; letter-spacing:1px; margin-bottom:4px; }
+  .card .value { font-size:24px; font-weight:700; }
+  .green { color:#69f0ae; } .red { color:#ff5252; }
+  .blue  { color:#4fc3f7; } .gold { color:#ffd740; }
 
-  .controls { padding:20px 30px; display:flex; gap:12px; align-items:center; }
-  .btn { padding:10px 28px; border-radius:30px; border:none; font-size:14px;
-    font-weight:700; cursor:pointer; transition:all 0.2s; letter-spacing:0.5px; }
+  .controls { padding:14px 24px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .btn { padding:9px 24px; border-radius:30px; border:none; font-size:13px;
+    font-weight:700; cursor:pointer; transition:all 0.2s; }
   .btn-start { background:linear-gradient(135deg,#00c853,#69f0ae); color:#000; }
-  .btn-start:hover { transform:scale(1.04); }
   .btn-stop  { background:linear-gradient(135deg,#d50000,#ff5252); color:#fff; }
-  .btn-stop:hover  { transform:scale(1.04); }
-  .btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
-  .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
-  .status-dot.on  { background:#69f0ae; box-shadow:0 0 8px #69f0ae; animation:pulse 1.5s infinite; }
-  .status-dot.off { background:#555; }
+  .btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .sdot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:5px; }
+  .sdot.on  { background:#69f0ae; box-shadow:0 0 8px #69f0ae; animation:pulse 1.5s infinite; }
+  .sdot.off { background:#555; }
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-  .status-text { font-size:13px; color:#aaa; }
-  .error-msg { font-size:12px; color:#ff5252; margin-left:12px; }
+  .stxt { font-size:12px; color:#aaa; }
+  .errmsg { font-size:11px; color:#ff5252; }
+  .lastrun { font-size:11px; color:#555; margin-left:auto; }
 
-  .section { padding:0 30px 24px; }
-  .section h2 { font-size:14px; color:#7a8fa6; letter-spacing:2px; margin-bottom:12px; }
+  .section { padding:0 24px 20px; }
+  .section h2 { font-size:11px; color:#7a8fa6; letter-spacing:2px; margin-bottom:10px;
+    padding-top:16px; border-top:1px solid rgba(255,255,255,0.05); }
 
   table { width:100%; border-collapse:collapse; }
-  th { font-size:11px; color:#7a8fa6; letter-spacing:1px; padding:8px 12px; text-align:left;
-    border-bottom:1px solid rgba(255,255,255,0.06); }
-  td { font-size:13px; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.04); }
-  tr:hover td { background:rgba(255,255,255,0.03); }
+  th { font-size:10px; color:#7a8fa6; letter-spacing:1px; padding:7px 10px;
+    text-align:left; border-bottom:1px solid rgba(255,255,255,0.06); }
+  td { font-size:12px; padding:9px 10px; border-bottom:1px solid rgba(255,255,255,0.04); }
+  tr:hover td { background:rgba(255,255,255,0.02); }
+
+  .sig { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; }
+  .sig.BUY  { background:rgba(105,240,174,0.15); color:#69f0ae; }
+  .sig.SELL { background:rgba(255,82,82,0.15);   color:#ff5252; }
+  .sig.HOLD { background:rgba(255,255,255,0.06); color:#888; }
+  .sig.ERROR,.sig.NODATA { background:rgba(255,193,7,0.1); color:#ffd740; }
+
+  .score-bar { display:inline-block; width:60px; height:6px; background:rgba(255,255,255,0.08);
+    border-radius:3px; vertical-align:middle; margin-left:6px; overflow:hidden; }
+  .score-fill { height:100%; border-radius:3px; transition:width 0.3s; }
+
+  .tag { font-size:10px; background:rgba(79,195,247,0.1); color:#4fc3f7;
+    padding:1px 6px; border-radius:8px; margin-right:3px; }
+
   .pos  { color:#69f0ae; font-weight:700; }
   .neg  { color:#ff5252; font-weight:700; }
-  .tag  { font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; }
-  .tag.buy  { background:rgba(105,240,174,0.15); color:#69f0ae; }
-  .tag.sell { background:rgba(255,82,82,0.15);   color:#ff5252; }
-  .tag.fail { background:rgba(255,193,7,0.15);   color:#ffd740; }
-  .empty { color:#555; font-size:13px; padding:16px 12px; }
+  .empty { color:#555; font-size:12px; padding:14px 10px; }
 
-  .last-run { font-size:11px; color:#555; margin-left:auto; }
-
-  /* Chart styles */
-  .chart-sym-btn { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
-    color:#e0e6f0; padding:5px 14px; border-radius:20px; font-size:12px; font-weight:700;
-    cursor:pointer; transition:all 0.2s; }
-  .chart-sym-btn:hover { border-color:rgba(79,195,247,0.5); color:#4fc3f7; }
-  .chart-sym-btn.active { background:rgba(79,195,247,0.15); border-color:rgba(79,195,247,0.6); color:#4fc3f7; }
-  tr.clickable { cursor:pointer; }
-  tr.clickable:hover td { background:rgba(79,195,247,0.05); }
+  .refresh-note { font-size:10px; color:#555; text-align:right; padding:4px 24px 8px; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>⚡ AutoTrader — Stock Bot</h1>
+  <h1>⚡ AutoTrader — Day Trading Bot</h1>
   <span class="mode-badge">📄 PAPER TRADING</span>
 </header>
 
-<!-- Stats -->
 <div class="grid">
+  <div class="card"><div class="label">PORTFOLIO VALUE</div><div class="value blue" id="equity">$—</div></div>
+  <div class="card"><div class="label">CASH AVAILABLE</div><div class="value gold" id="cash">$—</div></div>
+  <div class="card"><div class="label">TODAY'S P&L</div><div class="value" id="pnl">$—</div></div>
   <div class="card">
-    <div class="label">PORTFOLIO VALUE</div>
-    <div class="value blue" id="equity">$—</div>
-  </div>
-  <div class="card">
-    <div class="label">CASH AVAILABLE</div>
-    <div class="value gold" id="cash">$—</div>
-  </div>
-  <div class="card">
-    <div class="label">TODAY'S P&L</div>
-    <div class="value" id="pnl">$—</div>
-  </div>
-  <div class="card">
-    <div class="label">OPEN POSITIONS</div>
-    <div class="value blue" id="posCount">—</div>
-  </div>
-</div>
-
-<!-- Controls -->
-<div class="controls">
-  <span class="status-dot off" id="dot"></span>
-  <span class="status-text" id="statusText">Bot stopped</span>
-  <button class="btn btn-start" id="btnStart" onclick="startBot()">▶ Start Bot</button>
-  <button class="btn btn-stop"  id="btnStop"  onclick="stopBot()" disabled>⏹ Stop Bot</button>
-  <span class="error-msg" id="errMsg"></span>
-  <span class="last-run" id="lastRun"></span>
-</div>
-
-<!-- Live Candlestick Chart -->
-<div class="section">
-  <h2>🕯️ LIVE CANDLESTICK CHARTS — CLICK ANY POSITION OR SIGNAL TO VIEW</h2>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;min-height:32px;" id="chartSymbolBtns">
-    <span style="font-size:12px;color:#555;line-height:32px;">Open a position or trade to see its chart here →</span>
-  </div>
-  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px;" id="chartBox" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-      <div>
-        <span id="chartSymbolLabel" style="font-size:22px;font-weight:700;color:#4fc3f7;">—</span>
-        <span id="chartPriceLabel" style="font-size:15px;color:#aaa;margin-left:10px;"></span>
-        <span id="chartChangeLabel" style="font-size:14px;font-weight:700;margin-left:8px;"></span>
-      </div>
-      <div style="display:flex;gap:6px;">
-        <button onclick="setChartTF('1Min')"  id="tf1"  class="chart-sym-btn">1m</button>
-        <button onclick="setChartTF('5Min')"  id="tf5"  class="chart-sym-btn active">5m</button>
-        <button onclick="setChartTF('15Min')" id="tf15" class="chart-sym-btn">15m</button>
-      </div>
+    <div class="label">DAILY TARGET</div>
+    <div class="value green" id="targetVal">$—</div>
+    <div style="margin-top:6px; background:rgba(255,255,255,0.06); border-radius:4px; height:6px; overflow:hidden;">
+      <div id="targetBar" style="height:6px; background:#69f0ae; border-radius:4px; width:0%; transition:width 0.5s;"></div>
     </div>
-    <div id="candleMomentum" style="margin-bottom:10px;font-size:13px;min-height:28px;"></div>
-    <canvas id="candleChart" style="width:100%;display:block;" height="200"></canvas>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-top:4px;padding:0 2px;" id="candleTimeLabels"></div>
-    <canvas id="volumeChart" style="width:100%;display:block;margin-top:4px;" height="32"></canvas>
-    <div style="font-size:10px;color:#555;margin-top:8px;text-align:right;" id="chartUpdated"></div>
+    <div style="font-size:10px; color:#555; margin-top:3px;" id="targetLabel">0% of target</div>
   </div>
 </div>
 
-<!-- Positions -->
+<div class="controls">
+  <span class="sdot off" id="dot"></span>
+  <span class="stxt" id="stxt">Bot stopped</span>
+  <button class="btn btn-start" id="btnStart" onclick="startBot()">▶ Start Now</button>
+  <button class="btn btn-stop"  id="btnStop"  onclick="stopBot()" disabled>⏹ Stop</button>
+  <span style="background:rgba(105,240,174,0.1);border:1px solid rgba(105,240,174,0.3);color:#69f0ae;border-radius:20px;padding:4px 12px;font-size:11px;">⏰ Auto: Mon-Fri 9:29am–3:50pm NY</span>
+  <span class="errmsg" id="err"></span>
+  <span class="lastrun" id="lastrun"></span>
+</div>
+
+<!-- Macro Briefing -->
 <div class="section">
-  <h2>OPEN POSITIONS</h2>
+  <h2>🌍 MACRO INTELLIGENCE — TODAY'S MARKET CONDITIONS</h2>
+  <div id="macroBriefing" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px 16px;">
+    <div style="color:#555; font-size:12px;">Loading macro briefing…</div>
+  </div>
+</div>
+
+<!-- Live Signals -->
+<div class="section">
+  <h2>📡 LIVE SIGNALS — SCANNING NOW</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>SYMBOL</th><th>SIGNAL</th><th>SCORE</th><th>PRICE</th>
+        <th>RSI</th><th>MACD</th><th>VWAP</th><th>EMA</th><th>PATTERNS</th>
+      </tr>
+    </thead>
+    <tbody id="sigTable"><tr><td class="empty" colspan="9">Loading signals…</td></tr></tbody>
+  </table>
+</div>
+
+<!-- Open Positions -->
+<div class="section">
+  <h2>💼 OPEN POSITIONS</h2>
   <table>
     <thead><tr><th>SYMBOL</th><th>QTY</th><th>ENTRY</th><th>CURRENT</th><th>P&L</th><th>%</th></tr></thead>
     <tbody id="posTable"><tr><td class="empty" colspan="6">No open positions</td></tr></tbody>
   </table>
 </div>
 
-<!-- Trade log -->
+<!-- Trade Log -->
 <div class="section">
-  <h2>RECENT TRADES</h2>
+  <h2>📋 TRADE LOG</h2>
   <table>
     <thead><tr><th>TIME</th><th>SYMBOL</th><th>ACTION</th><th>QTY</th><th>STATUS</th></tr></thead>
-    <tbody id="tradeTable"><tr><td class="empty" colspan="5">No trades yet</td></tr></tbody>
+    <tbody id="tradeTable"><tr><td class="empty" colspan="5">No trades yet — start the bot</td></tr></tbody>
   </table>
 </div>
 
+<div class="refresh-note" id="refreshNote">Refreshing every 15s</div>
+
+<!-- Backtest Section -->
+<div class="section">
+  <h2>🔬 BACKTEST — TEST STRATEGY ON HISTORICAL DATA</h2>
+  <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+    <select id="btDays" style="background:#1a2030;color:#e0e6f0;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 12px;font-size:13px;">
+      <option value="30">Last 30 days</option>
+      <option value="90" selected>Last 90 days</option>
+      <option value="180">Last 180 days</option>
+    </select>
+    <select id="btTf" style="background:#1a2030;color:#e0e6f0;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 12px;font-size:13px;">
+      <option value="1Day">Daily bars (fast)</option>
+      <option value="1Min">1-Min bars (matches live bot — slow)</option>
+    </select>
+    <button onclick="runBacktest()" id="btBtn" class="btn btn-start" style="padding:8px 20px;font-size:13px;">▶ Run Backtest</button>
+    <span id="btStatus" style="font-size:12px;color:#aaa;"></span>
+  </div>
+  <div style="font-size:11px;color:#ffd740;margin-bottom:10px;">⚠️ Daily bars = directional only. 1-Min bars = accurate but takes 2-3 mins to run.</div>
+  <div id="btResults" style="display:none;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;" id="btGrid"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="btDetail"></div>
+  </div>
+</div>
+
 <script>
+function fmt(n) { return n >= 0 ? `+$${Math.abs(n).toFixed(2)}` : `-$${Math.abs(n).toFixed(2)}`; }
+
+function scoreBar(score) {
+  const pct = Math.min(Math.abs(score) / 8 * 100, 100);
+  const col = score > 0 ? '#69f0ae' : score < 0 ? '#ff5252' : '#555';
+  return `<span class="score-bar"><span class="score-fill" style="width:${pct}%;background:${col}"></span></span>`;
+}
+
 async function startBot() {
   await fetch('/api/start', {method:'POST'});
   document.getElementById('btnStart').disabled = true;
@@ -162,232 +183,194 @@ async function stopBot() {
   document.getElementById('btnStop').disabled  = true;
 }
 
-function fmt(n) { return n >= 0 ? `+$${n.toFixed(2)}` : `-$${Math.abs(n).toFixed(2)}`; }
-
-async function refresh() {
+async function refreshStatus() {
   try {
     const r = await fetch('/api/status');
     const d = await r.json();
 
-    document.getElementById('equity').textContent  = `$${parseFloat(d.equity).toFixed(2)}`;
-    document.getElementById('cash').textContent    = `$${parseFloat(d.cash).toFixed(2)}`;
+    document.getElementById('equity').textContent = `$${parseFloat(d.equity).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    document.getElementById('cash').textContent   = `$${parseFloat(d.cash).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 
     const pnlEl = document.getElementById('pnl');
-    pnlEl.textContent  = fmt(d.daily_pnl);
-    pnlEl.className    = `value ${d.daily_pnl >= 0 ? 'green' : 'red'}`;
+    pnlEl.textContent = fmt(d.daily_pnl);
+    pnlEl.className   = `value ${d.daily_pnl >= 0 ? 'green' : 'red'}`;
 
-    document.getElementById('posCount').textContent = d.positions.length;
-    document.getElementById('lastRun').textContent  = d.last_run ? `Last scan: ${d.last_run}` : '';
-    document.getElementById('errMsg').textContent   = d.error || '';
+    // Target progress
+    const target = d.daily_target || 25;
+    const pct = Math.min(Math.max(d.daily_pnl / target * 100, 0), 100);
+    document.getElementById('targetVal').textContent = `$${d.daily_pnl.toFixed(2)} / $${target}`;
+    document.getElementById('targetBar').style.width = pct + '%';
+    document.getElementById('targetBar').style.background = d.target_hit ? '#ffd740' : '#69f0ae';
+    document.getElementById('targetLabel').textContent = d.target_hit
+      ? '🎯 TARGET HIT — Trading stopped for today'
+      : `${pct.toFixed(0)}% of daily target`;
 
-    const dot  = document.getElementById('dot');
-    const stxt = document.getElementById('statusText');
-    dot.className  = `status-dot ${d.running ? 'on' : 'off'}`;
-    stxt.textContent = d.running ? 'Bot running — scanning every 5 min' : 'Bot stopped';
+    document.getElementById('posCount') && (document.getElementById('posCount').textContent = d.positions.length);
+    document.getElementById('lastrun').textContent  = d.last_run ? `Last scan: ${d.last_run}` : '';
+    document.getElementById('err').textContent      = d.error || '';
+
+    const dot = document.getElementById('dot');
+    dot.className = `sdot ${d.running ? 'on' : 'off'}`;
+    document.getElementById('stxt').textContent = d.running ? 'Bot running — scanning every 1 min' : 'Bot stopped';
     document.getElementById('btnStart').disabled = d.running;
     document.getElementById('btnStop').disabled  = !d.running;
 
     // Positions
     const pt = document.getElementById('posTable');
-    if (d.positions.length === 0) {
-      pt.innerHTML = '<tr><td class="empty" colspan="6">No open positions</td></tr>';
-    } else {
-      pt.innerHTML = d.positions.map(p => {
-        addChartButton(p.symbol);
-        return `<tr class="clickable" onclick="loadChart('${p.symbol}')" title="Click to view live chart">
-          <td><strong style="color:#4fc3f7;">${p.symbol}</strong> <span style="font-size:10px;color:#555;">&#128200;</span></td>
-          <td>${p.qty}</td>
-          <td>${p.entry.toFixed(2)}</td>
-          <td>${p.current.toFixed(2)}</td>
+    pt.innerHTML = d.positions.length === 0
+      ? '<tr><td class="empty" colspan="6">No open positions</td></tr>'
+      : d.positions.map(p => `<tr>
+          <td><strong>${p.symbol}</strong></td><td>${p.qty}</td>
+          <td>$${p.entry.toFixed(2)}</td><td>$${p.current.toFixed(2)}</td>
           <td class="${p.pnl>=0?'pos':'neg'}">${fmt(p.pnl)}</td>
           <td class="${p.pnl_pct>=0?'pos':'neg'}">${p.pnl_pct.toFixed(2)}%</td>
-        </tr>`;
-      }).join('');
-    }
+        </tr>`).join('');
 
     // Trades
     const tt = document.getElementById('tradeTable');
-    if (d.trades.length === 0) {
-      tt.innerHTML = '<tr><td class="empty" colspan="5">No trades yet</td></tr>';
-    } else {
-      tt.innerHTML = [...d.trades].reverse().map(t => {
-        const cls = t.action==='BUY' ? 'buy' : t.status.includes('FAIL') ? 'fail' : 'sell';
-        return `<tr>
-          <td>${t.time}</td>
-          <td><strong>${t.symbol}</strong></td>
-          <td><span class="tag ${cls}">${t.action}</span></td>
-          <td>${t.qty}</td>
-          <td>${t.status}</td>
-        </tr>`;
-      }).join('');
-    }
-  } catch(e) { console.error(e); }
+    tt.innerHTML = d.trades.length === 0
+      ? '<tr><td class="empty" colspan="5">No trades yet — start the bot</td></tr>'
+      : [...d.trades].reverse().map(t => {
+          const cls = t.action==='BUY' ? 'BUY' : t.status.includes('FAIL') ? 'ERROR' : 'SELL';
+          return `<tr><td>${t.time}</td><td><strong>${t.symbol}</strong></td>
+            <td><span class="sig ${cls}">${t.action}</span></td>
+            <td>${t.qty}</td><td>${t.status}</td></tr>`;
+        }).join('');
+  } catch(e) { console.error('Status error:', e); }
 }
 
-refresh();
-setInterval(refresh, 10000); // refresh every 10 seconds
-
-// ── Candlestick Chart Engine ──────────────────────────────────────────────
-let currentSymbol = null;
-let currentTF = '5Min';
-
-function setChartTF(tf) {
-  currentTF = tf;
-  document.querySelectorAll('#tf1,#tf5,#tf15').forEach(b => b.classList.remove('active'));
-  const map = {'1Min':'tf1','5Min':'tf5','15Min':'tf15'};
-  if (map[tf]) document.getElementById(map[tf]).classList.add('active');
-  if (currentSymbol) loadChart(currentSymbol);
-}
-
-function addChartButton(symbol) {
-  const container = document.getElementById('chartSymbolBtns');
-  if (document.querySelector(`.chart-sym-btn[data-sym="${symbol}"]`)) return;
-  if (container.querySelector('span')) container.innerHTML = '';
-  const btn = document.createElement('button');
-  btn.className = 'chart-sym-btn';
-  btn.dataset.sym = symbol;
-  btn.textContent = symbol;
-  btn.onclick = () => loadChart(symbol);
-  container.appendChild(btn);
-}
-
-async function loadChart(symbol) {
-  currentSymbol = symbol;
-  document.getElementById('chartBox').style.display = 'block';
-  document.getElementById('chartSymbolLabel').textContent = symbol;
-  document.getElementById('chartPriceLabel').textContent = 'Loading…';
-  document.getElementById('candleMomentum').innerHTML = '';
-  document.querySelectorAll('.chart-sym-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.sym === symbol);
-  });
+async function refreshSignals() {
   try {
-    const r = await fetch(`/api/bars/${symbol}?tf=${currentTF}&limit=60`);
-    const bars = await r.json();
-    if (!bars || bars.error || bars.length < 2) {
-      document.getElementById('chartPriceLabel').textContent = 'No data available';
-      return;
-    }
-    drawCandleChart(bars);
-    document.getElementById('chartUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    const r = await fetch('/api/signals');
+    const data = await r.json();
+    if (!Array.isArray(data)) return;
+
+    const tb = document.getElementById('sigTable');
+    tb.innerHTML = data.map(s => {
+      const sigCls = s.signal.replace(' ','') === 'NODATA' ? 'NODATA' : s.signal;
+      const patterns = (s.patterns||[]).map(p => p !== 'None' ? `<span class="tag">${p}</span>` : '').join('');
+      const macdCls = s.macd==='BUY'?'green':s.macd==='SELL'?'red':'';
+      const vwapCls = s.vwap==='BUY'?'green':s.vwap==='SELL'?'red':'';
+      const emaCls  = s.ema==='BUY'?'green':s.ema==='SELL'?'red':'';
+      const rsiCls  = s.rsi<40?'green':s.rsi>60?'red':'';
+      return `<tr>
+        <td><strong>${s.symbol}</strong></td>
+        <td><span class="sig ${sigCls}">${s.signal}</span></td>
+        <td>${s.score !== undefined ? (s.score > 0 ? '+' : '') + s.score : '—'}${scoreBar(s.score||0)}</td>
+        <td>$${s.price ? s.price.toFixed(2) : '—'}</td>
+        <td class="${rsiCls}">${s.rsi ? s.rsi.toFixed(1) : '—'}</td>
+        <td class="${macdCls}">${s.macd||'—'}</td>
+        <td class="${vwapCls}">${s.vwap||'—'}</td>
+        <td class="${emaCls}">${s.ema||'—'}</td>
+        <td>${patterns || '<span style="color:#555">None</span>'}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('refreshNote').textContent =
+      'Last updated: ' + new Date().toLocaleTimeString();
+  } catch(e) { console.error('Signals error:', e); }
+}
+
+async function refreshMacro() {
+  try {
+    const r = await fetch('/api/macro');
+    const d = await r.json();
+    const el = document.getElementById('macroBriefing');
+    const sentColor = d.sentiment==='bullish'?'#69f0ae':d.sentiment==='bearish'?'#ff5252':'#ffd740';
+    const riskColor = d.risk_level==='aggressive'?'#ff5252':d.risk_level==='conservative'?'#69f0ae':'#ffd740';
+    const aiTag = d.ai_powered
+      ? `<span style="background:rgba(155,89,182,0.2);color:#ce93d8;border:1px solid rgba(155,89,182,0.4);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">🧠 AI Powered</span>`
+      : `<span style="background:rgba(255,255,255,0.06);color:#888;border-radius:20px;padding:3px 10px;font-size:11px;">📋 Rules Based</span>`;
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        ${aiTag}
+        <span style="background:${sentColor}22;color:${sentColor};border:1px solid ${sentColor}44;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;">
+          ${d.sentiment==='bullish'?'📈 BULLISH':d.sentiment==='bearish'?'📉 BEARISH':'➡️ NEUTRAL'}
+        </span>
+        <span style="background:${riskColor}22;color:${riskColor};border:1px solid ${riskColor}44;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;">
+          ${d.risk_level?.toUpperCase()} RISK
+        </span>
+        <span style="font-size:10px;color:#555;margin-left:auto;">Generated: ${d.generated_at}</span>
+      </div>
+      <div style="font-size:12px;color:#ccc;margin-bottom:10px;line-height:1.6;">${d.reasoning||''}</div>
+      ${d.key_risks?.length ? `<div style="margin-bottom:8px;">${d.key_risks.map(r=>`<span style="background:rgba(255,82,82,0.08);color:#ff8a80;border-radius:6px;padding:2px 8px;font-size:11px;margin-right:4px;">⚠️ ${r}</span>`).join('')}</div>` : ''}
+      ${d.sectors?.length ? `<div style="margin-bottom:8px;font-size:11px;color:#7a8fa6;">FAVOUR: ${d.sectors.map(s=>`<span style="color:#69f0ae;margin-right:6px;">✓ ${s}</span>`).join('')}</div>` : ''}
+      ${d.avoid?.length ? `<div style="margin-bottom:8px;font-size:11px;color:#7a8fa6;">AVOID: ${d.avoid.map(s=>`<span style="color:#ff5252;margin-right:6px;">✗ ${s}</span>`).join('')}</div>` : ''}
+      <div style="font-size:10px;color:#555;">
+        Scanning <strong style="color:#4fc3f7;">${(d.watchlist||[]).length} stocks</strong>:
+        ${(d.watchlist||[]).slice(0,20).map(s=>`<span style="color:#888;margin-right:4px;">${s}</span>`).join('')}
+        ${(d.watchlist||[]).length>20?`<span style="color:#555;">+${(d.watchlist||[]).length-20} more</span>`:''}
+      </div>
+      ${d.confidence ? `<div style="margin-top:8px;"><span style="font-size:10px;color:#555;">AI Confidence: </span>${'⭐'.repeat(Math.round(d.confidence/2))}<span style="font-size:10px;color:#555;"> ${d.confidence}/10</span></div>` : ''}
+    `;
+  } catch(e) { console.error('Macro error:', e); }
+}
+
+async function runBacktest() {
+  const btn    = document.getElementById('btBtn');
+  const status = document.getElementById('btStatus');
+  const days   = document.getElementById('btDays').value;
+  btn.disabled = true;
+  status.textContent = 'Running… this takes 30-60 seconds';
+  document.getElementById('btResults').style.display = 'none';
+
+  try {
+    const r = await fetch('/api/backtest', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({days: parseInt(days)})
+    });
+    const d = await r.json();
+    if (d.error) { status.textContent = 'Error: ' + d.error; btn.disabled=false; return; }
+
+    const pnlColor = d.total_pnl >= 0 ? '#69f0ae' : '#ff5252';
+    const wrColor  = d.win_rate >= 50 ? '#69f0ae' : '#ff5252';
+
+    document.getElementById('btGrid').innerHTML = `
+      <div class="card"><div class="label">TOTAL P&L</div><div class="value" style="color:${pnlColor}">${d.total_pnl >= 0 ? '+' : ''}$${d.total_pnl?.toFixed(2)}</div></div>
+      <div class="card"><div class="label">WIN RATE</div><div class="value" style="color:${wrColor}">${d.win_rate}%</div></div>
+      <div class="card"><div class="label">TOTAL TRADES</div><div class="value blue">${d.total_trades}</div></div>
+      <div class="card"><div class="label">MAX DRAWDOWN</div><div class="value red">${d.max_drawdown}%</div></div>
+    `;
+
+    document.getElementById('btDetail').innerHTML = `
+      <div class="card">
+        <div class="label">TRADE BREAKDOWN</div>
+        <div style="margin-top:8px;font-size:13px;line-height:2;">
+          <div>✅ Wins: <strong style="color:#69f0ae">${d.wins}</strong> &nbsp; Avg: <strong style="color:#69f0ae">+$${d.avg_win?.toFixed(2)}</strong></div>
+          <div>❌ Losses: <strong style="color:#ff5252">${d.losses}</strong> &nbsp; Avg: <strong style="color:#ff5252">$${d.avg_loss?.toFixed(2)}</strong></div>
+          <div>📊 Profit Factor: <strong style="color:#ffd740">${d.profit_factor}</strong></div>
+          <div>💰 Final Capital: <strong style="color:#4fc3f7">$${d.final_capital?.toLocaleString()}</strong></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">BEST & WORST TRADES</div>
+        <div style="margin-top:8px;font-size:13px;line-height:2;">
+          ${d.best_trade ? `<div>🏆 Best: <strong style="color:#69f0ae">${d.best_trade.symbol} +$${d.best_trade.pnl} (${d.best_trade.pnl_pct}%)</strong></div>` : ''}
+          ${d.worst_trade ? `<div>💀 Worst: <strong style="color:#ff5252">${d.worst_trade.symbol} $${d.worst_trade.pnl} (${d.worst_trade.pnl_pct}%)</strong></div>` : ''}
+          <div style="margin-top:6px;font-size:11px;color:#555;">Return: <strong style="color:${pnlColor}">${d.total_pnl_pct}%</strong> over ${days} days</div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('btResults').style.display = 'block';
+    status.textContent = `Completed — ${d.total_trades} trades analysed`;
   } catch(e) {
-    document.getElementById('chartPriceLabel').textContent = 'Error loading chart';
+    status.textContent = 'Failed: ' + e.message;
   }
+  btn.disabled = false;
 }
 
-function drawCandleChart(bars) {
-  const canvas  = document.getElementById('candleChart');
-  const volCvs  = document.getElementById('volumeChart');
-  const W = canvas.parentElement.offsetWidth - 40;
-  canvas.width = W; canvas.height = 200;
-  volCvs.width = W; volCvs.height = 32;
+// Initial load
+refreshStatus();
+refreshSignals();
+refreshMacro();
 
-  const ctx  = canvas.getContext('2d');
-  const vctx = volCvs.getContext('2d');
-  ctx.clearRect(0,0,W,200); vctx.clearRect(0,0,W,32);
-
-  const pad = {left:8, right:62, top:12, bottom:12};
-  const cW  = W - pad.left - pad.right;
-  const cH  = 200 - pad.top - pad.bottom;
-
-  const maxP   = Math.max(...bars.map(b=>b.high));
-  const minP   = Math.min(...bars.map(b=>b.low));
-  const range  = maxP - minP || 1;
-  const maxVol = Math.max(...bars.map(b=>b.volume||0)) || 1;
-  const spacing = cW / bars.length;
-  const candleW = Math.max(2, spacing - 2);
-
-  const toY = p => pad.top + cH - ((p - minP) / range) * cH;
-  const toX = i => pad.left + i * spacing + spacing / 2;
-
-  // Grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
-  for (let i=0; i<=4; i++) {
-    const y = pad.top + (cH/4)*i;
-    ctx.beginPath(); ctx.moveTo(pad.left,y); ctx.lineTo(W-pad.right,y); ctx.stroke();
-    const price = maxP - (range/4)*i;
-    ctx.fillStyle='#555'; ctx.font='10px monospace'; ctx.textAlign='left';
-    ctx.fillText(price.toFixed(2), W-pad.right+4, y+4);
-  }
-
-  // Candles
-  bars.forEach((b,i) => {
-    const x = toX(i);
-    const bull = b.close >= b.open;
-    const col  = bull ? '#69f0ae' : '#ff5252';
-    ctx.strokeStyle = col; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x, toY(b.high)); ctx.lineTo(x, toY(b.low)); ctx.stroke();
-    const bodyTop = Math.min(toY(b.open), toY(b.close));
-    const bodyH   = Math.max(Math.abs(toY(b.close)-toY(b.open)), 1);
-    ctx.fillStyle = bull ? 'rgba(105,240,174,0.85)' : 'rgba(255,82,82,0.85)';
-    ctx.fillRect(x - candleW/2, bodyTop, candleW, bodyH);
-  });
-
-  // Detect 3-candle momentum on last 3 bars
-  const last3 = bars.slice(-3);
-  const allBull = last3.every(b=>b.close>b.open) &&
-                  last3[1].close>last3[0].close && last3[2].close>last3[1].close;
-  const allBear = last3.every(b=>b.close<b.open) &&
-                  last3[1].close<last3[0].close && last3[2].close<last3[1].close;
-
-  // Highlight last 3 candles
-  if (allBull || allBear) {
-    ctx.strokeStyle = allBull ? 'rgba(105,240,174,0.5)' : 'rgba(255,82,82,0.5)';
-    ctx.lineWidth = 2;
-    for (let i=bars.length-3; i<bars.length; i++) {
-      const b=bars[i], x=toX(i);
-      const bTop=Math.min(toY(b.open),toY(b.close));
-      const bH=Math.max(Math.abs(toY(b.close)-toY(b.open)),1);
-      ctx.strokeRect(x-candleW/2-2, bTop-2, candleW+4, bH+4);
-    }
-  }
-
-  // Current price line
-  const last = bars[bars.length-1];
-  const py = toY(last.close);
-  ctx.strokeStyle='#4fc3f7'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-  ctx.beginPath(); ctx.moveTo(pad.left,py); ctx.lineTo(W-pad.right,py); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle='#4fc3f7'; ctx.font='bold 11px monospace'; ctx.textAlign='left';
-  ctx.fillText(last.close.toFixed(2), W-pad.right+4, py+4);
-
-  // Volume
-  bars.forEach((b,i) => {
-    const x=toX(i), h=((b.volume||0)/maxVol)*28;
-    vctx.fillStyle = b.close>=b.open ? 'rgba(105,240,174,0.5)' : 'rgba(255,82,82,0.5)';
-    vctx.fillRect(x-candleW/2, 32-h, candleW, h);
-  });
-
-  // Time labels
-  const labelEl = document.getElementById('candleTimeLabels');
-  labelEl.innerHTML = '';
-  const step = Math.max(1, Math.floor(bars.length/8));
-  for (let i=0; i<bars.length; i+=step) {
-    const t = bars[i].time ? new Date(bars[i].time).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
-    const s = document.createElement('span'); s.textContent=t; labelEl.appendChild(s);
-  }
-
-  // Price + change
-  const first = bars[0];
-  const change = last.close - first.open;
-  const pct = (change/first.open*100).toFixed(2);
-  document.getElementById('chartPriceLabel').textContent = `$${last.close.toFixed(2)}`;
-  const chEl = document.getElementById('chartChangeLabel');
-  chEl.textContent = `${change>=0?'+':''}${change.toFixed(2)} (${pct}%)`;
-  chEl.style.color = change>=0 ? '#69f0ae' : '#ff5252';
-
-  // 3-candle momentum badge
-  const momEl = document.getElementById('candleMomentum');
-  if (allBull) {
-    momEl.innerHTML = `<span style="background:rgba(105,240,174,0.15);border:1px solid rgba(105,240,174,0.4);color:#69f0ae;padding:4px 16px;border-radius:20px;font-weight:700;font-size:13px;">▲▲▲ 3-CANDLE BULL RUN — BUY SIGNAL ACTIVE</span>`;
-  } else if (allBear) {
-    momEl.innerHTML = `<span style="background:rgba(255,82,82,0.15);border:1px solid rgba(255,82,82,0.4);color:#ff5252;padding:4px 16px;border-radius:20px;font-weight:700;font-size:13px;">▼▼▼ 3-CANDLE BEAR RUN — SELL SIGNAL ACTIVE</span>`;
-  } else {
-    momEl.innerHTML = `<span style="background:rgba(255,255,255,0.05);color:#555;padding:4px 16px;border-radius:20px;font-size:12px;">Watching for 3-candle momentum confirmation…</span>`;
-  }
-}
-
-// Auto-refresh chart every 30s
-setInterval(() => { if (currentSymbol) loadChart(currentSymbol); }, 30000);
+// Auto refresh
+setInterval(refreshStatus,  10000);
+setInterval(refreshSignals, 15000);
+setInterval(refreshMacro,   60000);  // macro refreshes every minute
 </script>
 </body>
 </html>

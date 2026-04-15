@@ -41,7 +41,7 @@ scheduler.start()
 
 @app.route('/')
 def index():
-    return send_from_directory(BASE_DIR, 'index.html')
+    return send_from_directory(os.path.join(BASE_DIR, 'templates'), 'index.html')
 
 @app.route('/api/start', methods=['POST'])
 def start():
