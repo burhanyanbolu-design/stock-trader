@@ -37,40 +37,65 @@ WATCHLIST = [
     # Mega-cap tech
     'AAPL','MSFT','GOOGL','AMZN','NVDA','META','AMD','TSLA','INTC','CRM',
     'ORCL','IBM','HPQ','DELL','ACN','ADBE','NOW','INTU','WDAY','TEAM',
+    'CSCO','AMAT','MU','TXN','AVGO','QCOM','KLAC','LRCX','MRVL','MCHP',
     # Broad ETFs
     'SPY','QQQ','IWM','DIA','XLK','XLF','XLE','XLV','XLY','XLI',
-    'XLP','XLU','XLB','ARKK','SMH','SOXX',
-    # Finance
+    'XLP','XLU','XLB','ARKK','SMH','SOXX','VXX','TQQQ','SQQQ','UVXY',
+    'TLT','GLD','SLV','USO','UNG','JETS','XBI','IBB','KWEB','EEM',
+    # Finance & Banks
     'JPM','BAC','GS','MS','WFC','C','BLK','SCHW','AXP','COF','USB','PNC',
-    # Energy
+    'SPGI','MCO','ICE','CME','CBOE','NDAQ','BX','KKR','APO','ARES',
+    # Energy & Oil
     'XOM','CVX','COP','SLB','HAL','OXY','MPC','VLO','PSX','DVN',
-    # Healthcare
-    'JNJ','UNH','PFE','ABBV','MRK','LLY','TMO','DHR','ISRG','REGN','VRTX','MRNA',
-    # Consumer discretionary
-    'NFLX','DIS','NKE','SBUX','MCD','WMT','TGT','COST','HD','LOW','BKNG','MAR',
-    # Consumer staples
-    'PG','KO','PEP','PM','MO','CL','GIS',
-    # Semiconductors
-    'QCOM','MU','AVGO','TXN','AMAT','LRCX','KLAC','MRVL','MCHP','ON','SWKS',
-    # Growth / momentum / tech
-    'PLTR','UBER','SHOP','SNOW','CRWD','DDOG','NET','ZS','PANW','OKTA','GTLB',
-    'RBLX','HOOD','SOFI','AFRM','UPST','PATH','AI','SOUN',
-    # Fintech
-    'V','MA','PYPL','SQ','FIS','FISV',
-    # Defence / industrial / aerospace
+    'EOG','PXD','FANG','HES','MRO','APA','NOV','BKR','CTRA','SM',
+    # Healthcare & Pharma
+    'JNJ','UNH','PFE','ABBV','MRK','LLY','TMO','DHR','ISRG','REGN',
+    'VRTX','MRNA','BMY','CVS','CI','HUM','ELV','MDT','SYK','BSX',
+    'ZBH','BAX','BDX','IQV','CRL','DXCM','PODD','ALGN','HOLX','IDXX',
+    # Consumer Discretionary
+    'NFLX','DIS','NKE','SBUX','MCD','WMT','TGT','COST','HD','LOW',
+    'BKNG','MAR','HLT','ABNB','EXPE','LYFT','UBER','DASH','PTON','W',
+    'ETSY','EBAY','CHWY','RH','BBY','GPS','PVH','RL','TPR','VFC',
+    # Consumer Staples
+    'PG','KO','PEP','PM','MO','CL','GIS','K','CPB','SJM','CAG',
+    'HSY','MDLZ','KHC','STZ','BF.B','TAP','SAM','CELH',
+    # Growth / Momentum / Tech
+    'PLTR','SHOP','SNOW','CRWD','DDOG','NET','ZS','PANW','OKTA','GTLB',
+    'RBLX','HOOD','SOFI','AFRM','UPST','PATH','AI','SOUN','IONQ','RGTI',
+    'SMCI','ARM','ASML','TSM','MSTR','COIN','HOOD','ACHR','JOBY','LILM',
+    'RKLB','LUNR','ASTS','SPCE','MNDY','BILL','HUBS','DOCN','ESTC','MDB',
+    # Fintech & Payments
+    'V','MA','PYPL','SQ','FIS','FISV','GPN','WEX','FOUR','PAYO',
+    # Defence / Industrial / Aerospace
     'LMT','RTX','NOC','BA','CAT','DE','GE','HON','MMM','UPS','FDX',
-    # Gold / commodities
-    'GLD','SLV','GDX','GDXJ','NEM','GOLD',
-    # Airlines / travel
-    'DAL','UAL','AAL','LUV','CCL','RCL','ABNB',
-    # EV / clean energy
-    'RIVN','LCID','ENPH','FSLR','PLUG','BE','CHPT',
-    # China / emerging
-    'BABA','JD','PDD','BIDU','NIO',
-    # Real estate / REITs
-    'AMT','PLD','EQIX','O',
-    # Biotech
-    'BIIB','GILD','AMGN','BMRN','EXAS',
+    'L3H','HII','LDOS','SAIC','KTOS','AXON','CACI','MANT','DRS','TDG',
+    'GD','TXT','HWM','SPR','HEICO','TransDigm','WWD','CW','ESLT',
+    # Gold / Commodities / Metals
+    'GLD','SLV','GDX','GDXJ','NEM','GOLD','AEM','KGC','AU','AGI',
+    'FCX','SCCO','AA','CLF','NUE','STLD','RS','CMC','MP','USLM',
+    # Airlines / Travel / Leisure
+    'DAL','UAL','AAL','LUV','CCL','RCL','ABNB','MGM','WYNN','LVS',
+    'CZR','PENN','DKNG','FLUT','RSI','EVRI',
+    # EV / Clean Energy / Future Tech
+    'RIVN','LCID','ENPH','FSLR','PLUG','BE','CHPT','BLNK','EVGO',
+    'NEE','AES','CEG','VST','NRG','ETR','PCG','EIX','XEL','WEC',
+    # China / Emerging Markets
+    'BABA','JD','PDD','BIDU','NIO','XPEV','LI','TCOM','TME','BILI',
+    # Real Estate / REITs
+    'AMT','PLD','EQIX','O','SPG','PSA','EXR','AVB','EQR','MAA',
+    'VTR','WELL','HR','DOC','MPW','IIPR','COLD','STAG','REXR','FR',
+    # Biotech / Life Sciences
+    'BIIB','GILD','AMGN','BMRN','EXAS','ILMN','PACB','RXRX','BEAM',
+    'EDIT','NTLA','CRSP','FATE','KYMR','ARVN','PRAX','ACAD','SAGE',
+    # Retail & E-commerce
+    'AMZN','WMT','TGT','COST','DLTR','DG','FIVE','OLLI','BJ','SFM',
+    # Media & Entertainment
+    'NFLX','DIS','PARA','WBD','FOXA','NYT','SPOT','TTWO','EA','ATVI',
+    # Cybersecurity
+    'CRWD','PANW','ZS','OKTA','NET','S','TENB','QLYS','VRNS','CYBR',
+    # Cloud & SaaS
+    'CRM','NOW','WDAY','TEAM','HUBS','DDOG','SNOW','MDB','ESTC','DOCN',
+    'ZM','TWLO','SEND','BRZE','PCTY','PAYC','COUP','APPN','ALTR','NCNO',
 ]
 
 api = None
@@ -257,8 +282,8 @@ def _fetch_signal(symbol: str) -> dict | None:
         if bars_1m.empty:
             return None
 
-        # Get signal detail from primary (1m) timeframe
-        d = get_signal_detail(bars_1m)
+        # Get signal detail from 5m timeframe — primary for 3-candle day trade system
+        d = get_signal_detail(bars_5m if not bars_5m.empty else bars_1m)
         d['symbol'] = symbol
         d['price']  = float(bars_1m['close'].iloc[-1])
 
@@ -393,8 +418,8 @@ def run_cycle():
     # ── Parallel signal scan — throttled to avoid Alpaca connection pool exhaustion ──
     watchlist = get_current_watchlist() or WATCHLIST
     signals   = []
-    # Max 10 workers to stay within Alpaca's connection pool size of 10
-    with ThreadPoolExecutor(max_workers=10) as pool:
+    # Max 20 workers to scan larger watchlist efficiently
+    with ThreadPoolExecutor(max_workers=20) as pool:
         futures = {pool.submit(_fetch_signal, sym): sym for sym in watchlist}
         for future in as_completed(futures):
             result = future.result()

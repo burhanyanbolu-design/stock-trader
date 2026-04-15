@@ -7,7 +7,91 @@ import pandas as pd
 import numpy as np
 
 
-# ─── Candlestick Pattern Detection ───────────────────────────────────────────
+# ─── 3-Candle Momentum Confirmation (5-min focused) ──────────────────────────
+
+def three_candle_bull(bars: pd.DataFrame) -> bool:
+    """
+    3 consecutive bullish 5-min candles — each close higher than previous close.
+    Each candle must be green (close > open).
+    Bodies must be meaningful (not tiny doji-like candles).
+    This confirms sustained buying momentum before entry.
+    """
+    if len(bars) < 3:
+        return False
+    c1, c2, c3 = bars.iloc[-3], bars.iloc[-2], bars.iloc[-1]
+
+    # All 3 must be green candles
+    all_green = (c1['close'] > c1['open'] and
+                 c2['close'] > c2['open'] and
+                 c3['close'] > c3['open'])
+
+    # Each close must be higher than the previous close — ascending momentum
+    ascending = c2['close'] > c1['close'] and c3['close'] > c2['close']
+
+    # Each body must be at least 0.05% of price — filters out tiny doji candles
+    min_body = c3['close'] * 0.0005
+    bodies_solid = (abs(c1['close'] - c1['open']) >= min_body and
+                    abs(c2['close'] - c2['open']) >= min_body and
+                    abs(c3['close'] - c3['open']) >= min_body)
+
+    return all_green and ascending and bodies_solid
+
+
+def three_candle_bear(bars: pd.DataFrame) -> bool:
+    """
+    3 consecutive bearish 5-min candles — each close lower than previous close.
+    Each candle must be red (close < open).
+    Bodies must be meaningful.
+    This confirms sustained selling momentum before short/sell entry.
+    """
+    if len(bars) < 3:
+        return False
+    c1, c2, c3 = bars.iloc[-3], bars.iloc[-2], bars.iloc[-1]
+
+    # All 3 must be red candles
+    all_red = (c1['close'] < c1['open'] and
+               c2['close'] < c2['open'] and
+               c3['close'] < c3['open'])
+
+    # Each close must be lower than the previous close — descending momentum
+    descending = c2['close'] < c1['close'] and c3['close'] < c2['close']
+
+    # Bodies must be solid
+    min_body = c3['close'] * 0.0005
+    bodies_solid = (abs(c1['close'] - c1['open']) >= min_body and
+                    abs(c2['close'] - c2['open']) >= min_body and
+                    abs(c3['close'] - c3['open']) >= min_body)
+
+    return all_red and descending and bodies_solid
+
+
+def candle_momentum_score(bars: pd.DataFrame) -> int:
+    """
+    Score based on 3-candle momentum patterns.
+    +3 for 3-candle bull run, -3 for 3-candle bear run.
+    +1/-1 for 2-candle partial confirmation.
+    """
+    score = 0
+
+    if three_candle_bull(bars):
+        score += 3
+    elif (len(bars) >= 2 and
+          bars.iloc[-2]['close'] > bars.iloc[-2]['open'] and
+          bars.iloc[-1]['close'] > bars.iloc[-1]['open'] and
+          bars.iloc[-1]['close'] > bars.iloc[-2]['close']):
+        score += 1  # 2-candle partial bull
+
+    if three_candle_bear(bars):
+        score -= 3
+    elif (len(bars) >= 2 and
+          bars.iloc[-2]['close'] < bars.iloc[-2]['open'] and
+          bars.iloc[-1]['close'] < bars.iloc[-1]['open'] and
+          bars.iloc[-1]['close'] < bars.iloc[-2]['close']):
+        score -= 1  # 2-candle partial bear
+
+    return score
+
+
 
 def is_bullish_engulfing(bars: pd.DataFrame) -> bool:
     """Previous candle red, current candle green and body fully engulfs previous"""
@@ -220,6 +304,12 @@ def combined_signal(bars: pd.DataFrame) -> str:
         in_uptrend   = True
         in_downtrend = True
 
+    # ── 3-Candle momentum confirmation (weight 3) — primary day trade trigger ─
+    # This is the core entry filter — requires 3 consecutive 5-min candles
+    # confirming direction before any signal is acted on
+    momentum = candle_momentum_score(bars)
+    score += momentum * 2  # double weight — this is the most important filter
+
     # ── Candlestick patterns (weight 2) ──────────────────────────────────────
     cs = candlestick_score(bars)
     score += cs * 2
@@ -255,10 +345,15 @@ def combined_signal(bars: pd.DataFrame) -> str:
     except:
         pass
 
-    # ── Final decision — raised threshold to 5 for higher quality signals ────
-    if score >= 5 and vol_confirmed and in_uptrend:
+    # ── Final decision — score 5+ AND 3-candle momentum must confirm ─────────
+    # For BUY: need bullish 3-candle run OR at least 2-candle partial + high score
+    # For SELL: need bearish 3-candle run OR at least 2-candle partial + high score
+    bull_confirmed = momentum >= 1  # at least 2-candle partial bull
+    bear_confirmed = momentum <= -1  # at least 2-candle partial bear
+
+    if score >= 5 and vol_confirmed and in_uptrend and bull_confirmed:
         return 'BUY'
-    if score <= -5 and vol_confirmed and in_downtrend:
+    if score <= -5 and vol_confirmed and in_downtrend and bear_confirmed:
         return 'SELL'
     return 'HOLD'
 
@@ -269,6 +364,7 @@ def get_signal_detail(bars: pd.DataFrame) -> dict:
         return {'signal': 'HOLD', 'score': 0, 'details': {}}
 
     cs    = candlestick_score(bars)
+    mom   = candle_momentum_score(bars)
     m     = macd_signal(bars)
     v     = vwap_signal(bars)
     b     = bollinger_signal(bars)
@@ -280,6 +376,8 @@ def get_signal_detail(bars: pd.DataFrame) -> dict:
         pass
 
     patterns = []
+    if three_candle_bull(bars):  patterns.append('3-Candle Bull Run ▲▲▲')
+    if three_candle_bear(bars):  patterns.append('3-Candle Bear Run ▼▼▼')
     if is_bullish_engulfing(bars):  patterns.append('Bullish Engulfing')
     if is_bearish_engulfing(bars):  patterns.append('Bearish Engulfing')
     if is_hammer(bars):             patterns.append('Hammer')
@@ -288,7 +386,7 @@ def get_signal_detail(bars: pd.DataFrame) -> dict:
     if is_evening_star(bars):       patterns.append('Evening Star')
     if is_doji(bars):               patterns.append('Doji')
 
-    score = cs*2
+    score = mom*2 + cs*2
     if m=='BUY': score+=2
     elif m=='SELL': score-=2
     if v=='BUY': score+=1

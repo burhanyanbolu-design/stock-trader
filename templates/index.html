@@ -57,6 +57,15 @@
   .empty { color:#555; font-size:13px; padding:16px 12px; }
 
   .last-run { font-size:11px; color:#555; margin-left:auto; }
+
+  /* Chart styles */
+  .chart-sym-btn { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+    color:#e0e6f0; padding:5px 14px; border-radius:20px; font-size:12px; font-weight:700;
+    cursor:pointer; transition:all 0.2s; }
+  .chart-sym-btn:hover { border-color:rgba(79,195,247,0.5); color:#4fc3f7; }
+  .chart-sym-btn.active { background:rgba(79,195,247,0.15); border-color:rgba(79,195,247,0.6); color:#4fc3f7; }
+  tr.clickable { cursor:pointer; }
+  tr.clickable:hover td { background:rgba(79,195,247,0.05); }
 </style>
 </head>
 <body>
@@ -94,6 +103,33 @@
   <button class="btn btn-stop"  id="btnStop"  onclick="stopBot()" disabled>⏹ Stop Bot</button>
   <span class="error-msg" id="errMsg"></span>
   <span class="last-run" id="lastRun"></span>
+</div>
+
+<!-- Live Candlestick Chart -->
+<div class="section">
+  <h2>🕯️ LIVE CANDLESTICK CHARTS — CLICK ANY POSITION OR SIGNAL TO VIEW</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;min-height:32px;" id="chartSymbolBtns">
+    <span style="font-size:12px;color:#555;line-height:32px;">Open a position or trade to see its chart here →</span>
+  </div>
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px;" id="chartBox" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <span id="chartSymbolLabel" style="font-size:22px;font-weight:700;color:#4fc3f7;">—</span>
+        <span id="chartPriceLabel" style="font-size:15px;color:#aaa;margin-left:10px;"></span>
+        <span id="chartChangeLabel" style="font-size:14px;font-weight:700;margin-left:8px;"></span>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="setChartTF('1Min')"  id="tf1"  class="chart-sym-btn">1m</button>
+        <button onclick="setChartTF('5Min')"  id="tf5"  class="chart-sym-btn active">5m</button>
+        <button onclick="setChartTF('15Min')" id="tf15" class="chart-sym-btn">15m</button>
+      </div>
+    </div>
+    <div id="candleMomentum" style="margin-bottom:10px;font-size:13px;min-height:28px;"></div>
+    <canvas id="candleChart" style="width:100%;display:block;" height="300"></canvas>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-top:4px;padding:0 2px;" id="candleTimeLabels"></div>
+    <canvas id="volumeChart" style="width:100%;display:block;margin-top:4px;" height="48"></canvas>
+    <div style="font-size:10px;color:#555;margin-top:8px;text-align:right;" id="chartUpdated"></div>
+  </div>
 </div>
 
 <!-- Positions -->
@@ -156,15 +192,17 @@ async function refresh() {
     if (d.positions.length === 0) {
       pt.innerHTML = '<tr><td class="empty" colspan="6">No open positions</td></tr>';
     } else {
-      pt.innerHTML = d.positions.map(p => `
-        <tr>
-          <td><strong>${p.symbol}</strong></td>
+      pt.innerHTML = d.positions.map(p => {
+        addChartButton(p.symbol);
+        return `<tr class="clickable" onclick="loadChart('${p.symbol}')" title="Click to view live chart">
+          <td><strong style="color:#4fc3f7;">${p.symbol}</strong> <span style="font-size:10px;color:#555;">&#128200;</span></td>
           <td>${p.qty}</td>
-          <td>$${p.entry.toFixed(2)}</td>
-          <td>$${p.current.toFixed(2)}</td>
+          <td>${p.entry.toFixed(2)}</td>
+          <td>${p.current.toFixed(2)}</td>
           <td class="${p.pnl>=0?'pos':'neg'}">${fmt(p.pnl)}</td>
           <td class="${p.pnl_pct>=0?'pos':'neg'}">${p.pnl_pct.toFixed(2)}%</td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
     }
 
     // Trades
@@ -188,6 +226,168 @@ async function refresh() {
 
 refresh();
 setInterval(refresh, 10000); // refresh every 10 seconds
+
+// ── Candlestick Chart Engine ──────────────────────────────────────────────
+let currentSymbol = null;
+let currentTF = '5Min';
+
+function setChartTF(tf) {
+  currentTF = tf;
+  document.querySelectorAll('#tf1,#tf5,#tf15').forEach(b => b.classList.remove('active'));
+  const map = {'1Min':'tf1','5Min':'tf5','15Min':'tf15'};
+  if (map[tf]) document.getElementById(map[tf]).classList.add('active');
+  if (currentSymbol) loadChart(currentSymbol);
+}
+
+function addChartButton(symbol) {
+  const container = document.getElementById('chartSymbolBtns');
+  if (document.querySelector(`.chart-sym-btn[data-sym="${symbol}"]`)) return;
+  if (container.querySelector('span')) container.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'chart-sym-btn';
+  btn.dataset.sym = symbol;
+  btn.textContent = symbol;
+  btn.onclick = () => loadChart(symbol);
+  container.appendChild(btn);
+}
+
+async function loadChart(symbol) {
+  currentSymbol = symbol;
+  document.getElementById('chartBox').style.display = 'block';
+  document.getElementById('chartSymbolLabel').textContent = symbol;
+  document.getElementById('chartPriceLabel').textContent = 'Loading…';
+  document.getElementById('candleMomentum').innerHTML = '';
+  document.querySelectorAll('.chart-sym-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.sym === symbol);
+  });
+  try {
+    const r = await fetch(`/api/bars/${symbol}?tf=${currentTF}&limit=60`);
+    const bars = await r.json();
+    if (!bars || bars.error || bars.length < 2) {
+      document.getElementById('chartPriceLabel').textContent = 'No data available';
+      return;
+    }
+    drawCandleChart(bars);
+    document.getElementById('chartUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  } catch(e) {
+    document.getElementById('chartPriceLabel').textContent = 'Error loading chart';
+  }
+}
+
+function drawCandleChart(bars) {
+  const canvas  = document.getElementById('candleChart');
+  const volCvs  = document.getElementById('volumeChart');
+  const W = canvas.parentElement.offsetWidth - 40;
+  canvas.width = W; canvas.height = 300;
+  volCvs.width = W; volCvs.height = 48;
+
+  const ctx  = canvas.getContext('2d');
+  const vctx = volCvs.getContext('2d');
+  ctx.clearRect(0,0,W,300); vctx.clearRect(0,0,W,48);
+
+  const pad = {left:8, right:62, top:16, bottom:16};
+  const cW  = W - pad.left - pad.right;
+  const cH  = 300 - pad.top - pad.bottom;
+
+  const maxP   = Math.max(...bars.map(b=>b.high));
+  const minP   = Math.min(...bars.map(b=>b.low));
+  const range  = maxP - minP || 1;
+  const maxVol = Math.max(...bars.map(b=>b.volume||0)) || 1;
+  const spacing = cW / bars.length;
+  const candleW = Math.max(2, spacing - 2);
+
+  const toY = p => pad.top + cH - ((p - minP) / range) * cH;
+  const toX = i => pad.left + i * spacing + spacing / 2;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+  for (let i=0; i<=4; i++) {
+    const y = pad.top + (cH/4)*i;
+    ctx.beginPath(); ctx.moveTo(pad.left,y); ctx.lineTo(W-pad.right,y); ctx.stroke();
+    const price = maxP - (range/4)*i;
+    ctx.fillStyle='#555'; ctx.font='10px monospace'; ctx.textAlign='left';
+    ctx.fillText(price.toFixed(2), W-pad.right+4, y+4);
+  }
+
+  // Candles
+  bars.forEach((b,i) => {
+    const x = toX(i);
+    const bull = b.close >= b.open;
+    const col  = bull ? '#69f0ae' : '#ff5252';
+    ctx.strokeStyle = col; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, toY(b.high)); ctx.lineTo(x, toY(b.low)); ctx.stroke();
+    const bodyTop = Math.min(toY(b.open), toY(b.close));
+    const bodyH   = Math.max(Math.abs(toY(b.close)-toY(b.open)), 1);
+    ctx.fillStyle = bull ? 'rgba(105,240,174,0.85)' : 'rgba(255,82,82,0.85)';
+    ctx.fillRect(x - candleW/2, bodyTop, candleW, bodyH);
+  });
+
+  // Detect 3-candle momentum on last 3 bars
+  const last3 = bars.slice(-3);
+  const allBull = last3.every(b=>b.close>b.open) &&
+                  last3[1].close>last3[0].close && last3[2].close>last3[1].close;
+  const allBear = last3.every(b=>b.close<b.open) &&
+                  last3[1].close<last3[0].close && last3[2].close<last3[1].close;
+
+  // Highlight last 3 candles
+  if (allBull || allBear) {
+    ctx.strokeStyle = allBull ? 'rgba(105,240,174,0.5)' : 'rgba(255,82,82,0.5)';
+    ctx.lineWidth = 2;
+    for (let i=bars.length-3; i<bars.length; i++) {
+      const b=bars[i], x=toX(i);
+      const bTop=Math.min(toY(b.open),toY(b.close));
+      const bH=Math.max(Math.abs(toY(b.close)-toY(b.open)),1);
+      ctx.strokeRect(x-candleW/2-2, bTop-2, candleW+4, bH+4);
+    }
+  }
+
+  // Current price line
+  const last = bars[bars.length-1];
+  const py = toY(last.close);
+  ctx.strokeStyle='#4fc3f7'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(pad.left,py); ctx.lineTo(W-pad.right,py); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#4fc3f7'; ctx.font='bold 11px monospace'; ctx.textAlign='left';
+  ctx.fillText(last.close.toFixed(2), W-pad.right+4, py+4);
+
+  // Volume
+  bars.forEach((b,i) => {
+    const x=toX(i), h=((b.volume||0)/maxVol)*44;
+    vctx.fillStyle = b.close>=b.open ? 'rgba(105,240,174,0.5)' : 'rgba(255,82,82,0.5)';
+    vctx.fillRect(x-candleW/2, 48-h, candleW, h);
+  });
+
+  // Time labels
+  const labelEl = document.getElementById('candleTimeLabels');
+  labelEl.innerHTML = '';
+  const step = Math.max(1, Math.floor(bars.length/8));
+  for (let i=0; i<bars.length; i+=step) {
+    const t = bars[i].time ? new Date(bars[i].time).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
+    const s = document.createElement('span'); s.textContent=t; labelEl.appendChild(s);
+  }
+
+  // Price + change
+  const first = bars[0];
+  const change = last.close - first.open;
+  const pct = (change/first.open*100).toFixed(2);
+  document.getElementById('chartPriceLabel').textContent = `$${last.close.toFixed(2)}`;
+  const chEl = document.getElementById('chartChangeLabel');
+  chEl.textContent = `${change>=0?'+':''}${change.toFixed(2)} (${pct}%)`;
+  chEl.style.color = change>=0 ? '#69f0ae' : '#ff5252';
+
+  // 3-candle momentum badge
+  const momEl = document.getElementById('candleMomentum');
+  if (allBull) {
+    momEl.innerHTML = `<span style="background:rgba(105,240,174,0.15);border:1px solid rgba(105,240,174,0.4);color:#69f0ae;padding:4px 16px;border-radius:20px;font-weight:700;font-size:13px;">▲▲▲ 3-CANDLE BULL RUN — BUY SIGNAL ACTIVE</span>`;
+  } else if (allBear) {
+    momEl.innerHTML = `<span style="background:rgba(255,82,82,0.15);border:1px solid rgba(255,82,82,0.4);color:#ff5252;padding:4px 16px;border-radius:20px;font-weight:700;font-size:13px;">▼▼▼ 3-CANDLE BEAR RUN — SELL SIGNAL ACTIVE</span>`;
+  } else {
+    momEl.innerHTML = `<span style="background:rgba(255,255,255,0.05);color:#555;padding:4px 16px;border-radius:20px;font-size:12px;">Watching for 3-candle momentum confirmation…</span>`;
+  }
+}
+
+// Auto-refresh chart every 30s
+setInterval(() => { if (currentSymbol) loadChart(currentSymbol); }, 30000);
 </script>
 </body>
 </html>

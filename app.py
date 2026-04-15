@@ -147,7 +147,34 @@ def get_macro():
         return jsonify({'error': str(e), 'conditions': [], 'notes': '', 'watchlist': []})
 
 
-@app.route('/api/daily-summary')
+@app.route('/api/bars/<symbol>')
+def get_bars(symbol):
+    """Returns OHLCV bars for candlestick chart."""
+    try:
+        tf    = request.args.get('tf', '5Min')
+        limit = int(request.args.get('limit', 60))
+        bars  = trader.get_bars(symbol.upper(), tf, limit=limit)
+        if bars.empty:
+            return jsonify({'error': 'No data'})
+        bars = bars.reset_index()
+        # index col may be 'timestamp' or 'time'
+        time_col = 'timestamp' if 'timestamp' in bars.columns else bars.columns[0]
+        result = []
+        for _, row in bars.iterrows():
+            result.append({
+                'time':   str(row[time_col]),
+                'open':   round(float(row['open']),  4),
+                'high':   round(float(row['high']),  4),
+                'low':    round(float(row['low']),   4),
+                'close':  round(float(row['close']), 4),
+                'volume': int(row['volume']) if 'volume' in row else 0,
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
 def daily_summary():
     """Returns today's trade performance summary from the trade log."""
     try:
@@ -254,7 +281,7 @@ def get_signals():
                         'ema': '-', 'patterns': [str(e)], 'slc': '-', 'tier': '-'}
 
         results = []
-        with ThreadPoolExecutor(max_workers=10) as pool:
+        with ThreadPoolExecutor(max_workers=20) as pool:
             futures = {pool.submit(fetch_one, sym): sym for sym in trader.WATCHLIST}
             for future in as_completed(futures):
                 results.append(future.result())
