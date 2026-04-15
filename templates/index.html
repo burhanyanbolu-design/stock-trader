@@ -125,9 +125,9 @@
       </div>
     </div>
     <div id="candleMomentum" style="margin-bottom:10px;font-size:13px;min-height:28px;"></div>
-    <canvas id="candleChart" style="width:100%;display:block;" height="300"></canvas>
+    <canvas id="candleChart" style="width:100%;display:block;" height="200"></canvas>
     <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-top:4px;padding:0 2px;" id="candleTimeLabels"></div>
-    <canvas id="volumeChart" style="width:100%;display:block;margin-top:4px;" height="48"></canvas>
+    <canvas id="volumeChart" style="width:100%;display:block;margin-top:4px;" height="32"></canvas>
     <div style="font-size:10px;color:#555;margin-top:8px;text-align:right;" id="chartUpdated"></div>
   </div>
 </div>
@@ -278,16 +278,16 @@ function drawCandleChart(bars) {
   const canvas  = document.getElementById('candleChart');
   const volCvs  = document.getElementById('volumeChart');
   const W = canvas.parentElement.offsetWidth - 40;
-  canvas.width = W; canvas.height = 300;
-  volCvs.width = W; volCvs.height = 48;
+  canvas.width = W; canvas.height = 200;
+  volCvs.width = W; volCvs.height = 32;
 
   const ctx  = canvas.getContext('2d');
   const vctx = volCvs.getContext('2d');
-  ctx.clearRect(0,0,W,300); vctx.clearRect(0,0,W,48);
+  ctx.clearRect(0,0,W,200); vctx.clearRect(0,0,W,32);
 
-  const pad = {left:8, right:62, top:16, bottom:16};
+  const pad = {left:8, right:62, top:12, bottom:12};
   const cW  = W - pad.left - pad.right;
-  const cH  = 300 - pad.top - pad.bottom;
+  const cH  = 200 - pad.top - pad.bottom;
 
   const maxP   = Math.max(...bars.map(b=>b.high));
   const minP   = Math.min(...bars.map(b=>b.low));
@@ -352,9 +352,9 @@ function drawCandleChart(bars) {
 
   // Volume
   bars.forEach((b,i) => {
-    const x=toX(i), h=((b.volume||0)/maxVol)*44;
+    const x=toX(i), h=((b.volume||0)/maxVol)*28;
     vctx.fillStyle = b.close>=b.open ? 'rgba(105,240,174,0.5)' : 'rgba(255,82,82,0.5)';
-    vctx.fillRect(x-candleW/2, 48-h, candleW, h);
+    vctx.fillRect(x-candleW/2, 32-h, candleW, h);
   });
 
   // Time labels

@@ -113,39 +113,11 @@
     <thead>
       <tr>
         <th>SYMBOL</th><th>SIGNAL</th><th>SCORE</th><th>PRICE</th>
-        <th>RSI</th><th>MACD</th><th>VWAP</th><th>EMA</th><th>SLC</th><th>TIER</th><th>PATTERNS</th>
+        <th>RSI</th><th>MACD</th><th>VWAP</th><th>EMA</th><th>PATTERNS</th>
       </tr>
     </thead>
     <tbody id="sigTable"><tr><td class="empty" colspan="9">Loading signals…</td></tr></tbody>
   </table>
-</div>
-
-<!-- Live Candlestick Charts -->
-<div class="section">
-  <h2>🕯️ LIVE CANDLESTICK CHARTS — 5-MIN BARS</h2>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;" id="chartSymbolBtns">
-    <span style="font-size:12px;color:#555;">Click a signal or position to view its chart →</span>
-  </div>
-  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-      <div>
-        <span id="chartSymbolLabel" style="font-size:18px;font-weight:700;color:#4fc3f7;">—</span>
-        <span id="chartPriceLabel" style="font-size:14px;color:#aaa;margin-left:10px;"></span>
-        <span id="chartChangeLabel" style="font-size:13px;font-weight:700;margin-left:8px;"></span>
-      </div>
-      <div style="display:flex;gap:6px;">
-        <button onclick="setChartTF('5Min')" id="tf5" class="btn btn-start" style="padding:4px 12px;font-size:11px;border-radius:6px;">5m</button>
-        <button onclick="setChartTF('1Min')" id="tf1" class="btn btn-stop" style="padding:4px 12px;font-size:11px;border-radius:6px;background:rgba(255,255,255,0.08);color:#aaa;">1m</button>
-        <button onclick="setChartTF('15Min')" id="tf15" class="btn btn-stop" style="padding:4px 12px;font-size:11px;border-radius:6px;background:rgba(255,255,255,0.08);color:#aaa;">15m</button>
-      </div>
-    </div>
-    <!-- 3-candle momentum indicator -->
-    <div id="candleMomentum" style="margin-bottom:10px;font-size:12px;"></div>
-    <canvas id="candleChart" style="width:100%;border-radius:8px;" height="320"></canvas>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-top:4px;" id="candleTimeLabels"></div>
-    <!-- Volume bars -->
-    <canvas id="volumeChart" style="width:100%;border-radius:4px;margin-top:4px;" height="50"></canvas>
-  </div>
 </div>
 
 <!-- Open Positions -->
@@ -167,19 +139,6 @@
 </div>
 
 <div class="refresh-note" id="refreshNote">Refreshing every 15s</div>
-
-<!-- Daily Performance Chart -->
-<div class="section">
-  <h2>📊 TODAY'S PERFORMANCE — P&L BY HOUR</h2>
-  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;" id="summaryCards"></div>
-    <div style="position:relative;height:180px;margin-bottom:8px;" id="chartWrap">
-      <canvas id="pnlChart" style="width:100%;height:180px;"></canvas>
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;padding:0 4px;" id="chartLabels"></div>
-    <div style="margin-top:14px;" id="symbolBreakdown"></div>
-  </div>
-</div>
 
 <!-- Backtest Section -->
 <div class="section">
@@ -294,8 +253,6 @@ async function refreshSignals() {
       const vwapCls = s.vwap==='BUY'?'green':s.vwap==='SELL'?'red':'';
       const emaCls  = s.ema==='BUY'?'green':s.ema==='SELL'?'red':'';
       const rsiCls  = s.rsi<40?'green':s.rsi>60?'red':'';
-      const slcCls  = s.slc==='BUY'?'green':s.slc==='SELL'?'red':'';
-      const tierColor = s.tier==='MAX'?'#ff9800':s.tier==='HIGH'?'#69f0ae':s.tier==='MED'?'#4fc3f7':s.tier==='LOW'?'#aaa':'#444';
       return `<tr>
         <td><strong>${s.symbol}</strong></td>
         <td><span class="sig ${sigCls}">${s.signal}</span></td>
@@ -305,8 +262,6 @@ async function refreshSignals() {
         <td class="${macdCls}">${s.macd||'—'}</td>
         <td class="${vwapCls}">${s.vwap||'—'}</td>
         <td class="${emaCls}">${s.ema||'—'}</td>
-        <td class="${slcCls}">${s.slc||'—'}</td>
-        <td><span style="color:${tierColor};font-weight:700;font-size:11px;">${s.tier||'—'}</span></td>
         <td>${patterns || '<span style="color:#555">None</span>'}</td>
       </tr>`;
     }).join('');
@@ -407,317 +362,15 @@ async function runBacktest() {
   btn.disabled = false;
 }
 
-async function refreshDailySummary() {
-  try {
-    const r = await fetch('/api/daily-summary');
-    const d = await r.json();
-    if (d.error) return;
-
-    const pnlColor = d.total_pnl >= 0 ? '#69f0ae' : '#ff5252';
-    const wrColor  = d.win_rate >= 50 ? '#69f0ae' : '#ff5252';
-
-    // ── Summary cards ──
-    document.getElementById('summaryCards').innerHTML = `
-      <div class="card"><div class="label">TODAY P&L</div><div class="value" style="color:${pnlColor};font-size:20px;">${d.total_pnl >= 0 ? '+' : ''}$${Math.abs(d.total_pnl).toFixed(2)}</div></div>
-      <div class="card"><div class="label">WIN RATE</div><div class="value" style="color:${wrColor};font-size:20px;">${d.win_rate}%</div></div>
-      <div class="card"><div class="label">TRADES</div><div class="value blue" style="font-size:20px;">${d.total_trades}</div></div>
-      <div class="card"><div class="label">W / L</div><div class="value" style="font-size:20px;"><span style="color:#69f0ae">${d.wins}</span> / <span style="color:#ff5252">${d.losses}</span></div></div>
-    `;
-
-    // ── Hourly P&L chart ──
-    const trades = (d.all_trades || []).filter(t => t.action === 'SELL' && t.pnl != null);
-    const hours = {};
-    for (let h = 9; h <= 16; h++) hours[h] = 0;
-    trades.forEach(t => {
-      const h = parseInt((t.time || '00:00:00').split(':')[0]);
-      if (h >= 9 && h <= 16) hours[h] = (hours[h] || 0) + t.pnl;
-    });
-
-    const labels = Object.keys(hours).map(h => `${h}:00`);
-    const values = Object.values(hours);
-    const maxAbs = Math.max(...values.map(Math.abs), 1);
-    const canvas = document.getElementById('pnlChart');
-    const wrap   = document.getElementById('chartWrap');
-    const W = wrap.offsetWidth || 600;
-    const H = 180;
-    canvas.width  = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, W, H);
-
-    const barW   = Math.floor(W / labels.length) - 6;
-    const midY   = H / 2;
-
-    // Zero line
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(W, midY); ctx.stroke();
-
-    // Bars
-    values.forEach((val, i) => {
-      const x    = i * (W / labels.length) + 3;
-      const barH = Math.abs(val) / maxAbs * (midY - 16);
-      const isPos = val >= 0;
-      ctx.fillStyle = isPos ? 'rgba(105,240,174,0.85)' : 'rgba(255,82,82,0.85)';
-      if (isPos) {
-        ctx.fillRect(x, midY - barH, barW, barH);
-      } else {
-        ctx.fillRect(x, midY, barW, barH);
-      }
-      // Value label
-      if (Math.abs(val) > 0.01) {
-        ctx.fillStyle = isPos ? '#69f0ae' : '#ff5252';
-        ctx.font = '10px monospace';
-        ctx.textAlign = 'center';
-        const label = (val >= 0 ? '+' : '') + val.toFixed(0);
-        ctx.fillText(label, x + barW / 2, isPos ? midY - barH - 4 : midY + barH + 12);
-      }
-    });
-
-    // Hour labels
-    document.getElementById('chartLabels').innerHTML =
-      labels.map(l => `<span>${l}</span>`).join('');
-
-    // ── Per-symbol breakdown ──
-    if (d.by_symbol && d.by_symbol.length > 0) {
-      const best  = d.best_trade;
-      const worst = d.worst_trade;
-      document.getElementById('symbolBreakdown').innerHTML = `
-        ${best || worst ? `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-          ${best ? `<div style="background:rgba(105,240,174,0.08);border:1px solid rgba(105,240,174,0.2);border-radius:10px;padding:12px;">
-            <div style="font-size:10px;color:#7a8fa6;letter-spacing:1px;margin-bottom:4px;">🏆 BEST TRADE TODAY</div>
-            <div style="font-size:20px;font-weight:700;color:#69f0ae;">+$${best.pnl.toFixed(2)}</div>
-            <div style="font-size:13px;color:#e0e6f0;margin-top:2px;">${best.symbol} @ ${best.time}</div>
-          </div>` : ''}
-          ${worst ? `<div style="background:rgba(255,82,82,0.08);border:1px solid rgba(255,82,82,0.2);border-radius:10px;padding:12px;">
-            <div style="font-size:10px;color:#7a8fa6;letter-spacing:1px;margin-bottom:4px;">💀 WORST TRADE TODAY</div>
-            <div style="font-size:20px;font-weight:700;color:#ff5252;">$${worst.pnl.toFixed(2)}</div>
-            <div style="font-size:13px;color:#e0e6f0;margin-top:2px;">${worst.symbol} @ ${worst.time}</div>
-          </div>` : ''}
-        </div>` : ''}
-        <div style="font-size:10px;color:#7a8fa6;letter-spacing:1px;margin-bottom:8px;">BY SYMBOL</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          ${d.by_symbol.map(s => {
-            const c = s.pnl >= 0 ? '#69f0ae' : '#ff5252';
-            const bg = s.pnl >= 0 ? 'rgba(105,240,174,0.08)' : 'rgba(255,82,82,0.08)';
-            return `<div style="background:${bg};border:1px solid ${c}33;border-radius:8px;padding:6px 12px;font-size:12px;">
-              <strong style="color:#e0e6f0">${s.symbol}</strong>
-              <span style="color:${c};margin-left:6px;">${s.pnl >= 0 ? '+' : ''}$${s.pnl.toFixed(2)}</span>
-              <span style="color:#555;margin-left:4px;font-size:10px;">${s.wins}W/${s.trades - s.wins}L</span>
-            </div>`;
-          }).join('')}
-        </div>
-      `;
-    } else {
-      document.getElementById('symbolBreakdown').innerHTML =
-        '<div style="color:#555;font-size:12px;text-align:center;padding:8px;">No completed trades today yet</div>';
-    }
-  } catch(e) { console.error('Daily summary error:', e); }
-}
-
-// ── Candlestick Chart Engine ──────────────────────────────────────────────
-let currentSymbol = null;
-let currentTF = '5Min';
-let chartInterval = null;
-
-function setChartTF(tf) {
-  currentTF = tf;
-  ['1','5','15'].forEach(t => {
-    const btn = document.getElementById('tf'+t);
-    if (btn) {
-      btn.style.background = tf === t+'Min' ? 'linear-gradient(135deg,#00c853,#69f0ae)' : 'rgba(255,255,255,0.08)';
-      btn.style.color = tf === t+'Min' ? '#000' : '#aaa';
-    }
-  });
-  if (currentSymbol) loadChart(currentSymbol);
-}
-
-async function loadChart(symbol) {
-  currentSymbol = symbol;
-  document.getElementById('chartSymbolLabel').textContent = symbol;
-  document.getElementById('chartPriceLabel').textContent = 'Loading…';
-  document.getElementById('candleMomentum').innerHTML = '';
-
-  // Highlight active button
-  document.querySelectorAll('.chart-sym-btn').forEach(b => {
-    b.style.background = b.dataset.sym === symbol
-      ? 'rgba(79,195,247,0.2)' : 'rgba(255,255,255,0.04)';
-    b.style.borderColor = b.dataset.sym === symbol
-      ? 'rgba(79,195,247,0.6)' : 'rgba(255,255,255,0.08)';
-  });
-
-  try {
-    const r = await fetch(`/api/bars/${symbol}?tf=${currentTF}&limit=60`);
-    const bars = await r.json();
-    if (!bars || bars.error || bars.length < 2) {
-      document.getElementById('chartPriceLabel').textContent = 'No data';
-      return;
-    }
-    drawCandleChart(bars, symbol);
-  } catch(e) {
-    document.getElementById('chartPriceLabel').textContent = 'Error loading chart';
-  }
-}
-
-function drawCandleChart(bars, symbol) {
-  const canvas = document.getElementById('candleChart');
-  const volCanvas = document.getElementById('volumeChart');
-  const W = canvas.parentElement.offsetWidth - 32;
-  canvas.width = W; canvas.height = 320;
-  volCanvas.width = W; volCanvas.height = 50;
-
-  const ctx = canvas.getContext('2d');
-  const vctx = volCanvas.getContext('2d');
-  ctx.clearRect(0, 0, W, 320);
-  vctx.clearRect(0, 0, W, 50);
-
-  const pad = { left: 10, right: 60, top: 20, bottom: 20 };
-  const chartW = W - pad.left - pad.right;
-  const chartH = 320 - pad.top - pad.bottom;
-
-  const highs  = bars.map(b => b.high);
-  const lows   = bars.map(b => b.low);
-  const maxP   = Math.max(...highs);
-  const minP   = Math.min(...lows);
-  const range  = maxP - minP || 1;
-  const maxVol = Math.max(...bars.map(b => b.volume || 0)) || 1;
-
-  const candleW = Math.max(3, Math.floor(chartW / bars.length) - 2);
-  const spacing = chartW / bars.length;
-
-  const toY = price => pad.top + chartH - ((price - minP) / range) * chartH;
-  const toX = i => pad.left + i * spacing + spacing / 2;
-
-  // Grid lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = pad.top + (chartH / 4) * i;
-    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-    const price = maxP - (range / 4) * i;
-    ctx.fillStyle = '#555'; ctx.font = '10px monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(price.toFixed(2), W - pad.right + 4, y + 4);
-  }
-
-  // Draw candles
-  bars.forEach((b, i) => {
-    const x    = toX(i);
-    const bull = b.close >= b.open;
-    const col  = bull ? '#69f0ae' : '#ff5252';
-    const openY  = toY(b.open);
-    const closeY = toY(b.close);
-    const highY  = toY(b.high);
-    const lowY   = toY(b.low);
-
-    // Wick
-    ctx.strokeStyle = col; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x, highY); ctx.lineTo(x, lowY); ctx.stroke();
-
-    // Body
-    const bodyTop = Math.min(openY, closeY);
-    const bodyH   = Math.max(Math.abs(closeY - openY), 1);
-    ctx.fillStyle = bull ? 'rgba(105,240,174,0.85)' : 'rgba(255,82,82,0.85)';
-    ctx.fillRect(x - candleW / 2, bodyTop, candleW, bodyH);
-  });
-
-  // Highlight last 3 candles with border to show momentum check
-  const last3 = bars.slice(-3);
-  const allBull = last3.every(b => b.close > b.open) &&
-                  last3[1].close > last3[0].close && last3[2].close > last3[1].close;
-  const allBear = last3.every(b => b.close < b.open) &&
-                  last3[1].close < last3[0].close && last3[2].close < last3[1].close;
-
-  if (allBull || allBear) {
-    const col = allBull ? 'rgba(105,240,174,0.4)' : 'rgba(255,82,82,0.4)';
-    ctx.strokeStyle = col; ctx.lineWidth = 2;
-    for (let i = bars.length - 3; i < bars.length; i++) {
-      const b = bars[i];
-      const x = toX(i);
-      const bodyTop = Math.min(toY(b.open), toY(b.close));
-      const bodyH   = Math.max(Math.abs(toY(b.close) - toY(b.open)), 1);
-      ctx.strokeRect(x - candleW / 2 - 2, bodyTop - 2, candleW + 4, bodyH + 4);
-    }
-  }
-
-  // Current price line
-  const lastBar = bars[bars.length - 1];
-  const priceY  = toY(lastBar.close);
-  ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath(); ctx.moveTo(pad.left, priceY); ctx.lineTo(W - pad.right, priceY); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = '#4fc3f7'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(lastBar.close.toFixed(2), W - pad.right + 4, priceY + 4);
-
-  // Volume bars
-  bars.forEach((b, i) => {
-    const x   = toX(i);
-    const h   = ((b.volume || 0) / maxVol) * 44;
-    vctx.fillStyle = b.close >= b.open ? 'rgba(105,240,174,0.5)' : 'rgba(255,82,82,0.5)';
-    vctx.fillRect(x - candleW / 2, 50 - h, candleW, h);
-  });
-
-  // Time labels
-  const labelCount = Math.min(8, bars.length);
-  const step = Math.floor(bars.length / labelCount);
-  const labelEl = document.getElementById('candleTimeLabels');
-  labelEl.innerHTML = '';
-  for (let i = 0; i < bars.length; i += step) {
-    const t = bars[i].time ? new Date(bars[i].time).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
-    const span = document.createElement('span');
-    span.textContent = t;
-    labelEl.appendChild(span);
-  }
-
-  // Price + change
-  const firstBar = bars[0];
-  const change   = lastBar.close - firstBar.open;
-  const changePct = (change / firstBar.open * 100).toFixed(2);
-  document.getElementById('chartPriceLabel').textContent = `$${lastBar.close.toFixed(2)}`;
-  const chEl = document.getElementById('chartChangeLabel');
-  chEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePct}%)`;
-  chEl.style.color = change >= 0 ? '#69f0ae' : '#ff5252';
-
-  // 3-candle momentum indicator
-  const momEl = document.getElementById('candleMomentum');
-  if (allBull) {
-    momEl.innerHTML = `<span style="background:rgba(105,240,174,0.15);border:1px solid rgba(105,240,174,0.4);color:#69f0ae;padding:4px 14px;border-radius:20px;font-weight:700;">▲▲▲ 3-CANDLE BULL RUN — BUY SIGNAL ACTIVE</span>`;
-  } else if (allBear) {
-    momEl.innerHTML = `<span style="background:rgba(255,82,82,0.15);border:1px solid rgba(255,82,82,0.4);color:#ff5252;padding:4px 14px;border-radius:20px;font-weight:700;">▼▼▼ 3-CANDLE BEAR RUN — SELL SIGNAL ACTIVE</span>`;
-  } else {
-    momEl.innerHTML = `<span style="background:rgba(255,255,255,0.05);color:#555;padding:4px 14px;border-radius:20px;">No 3-candle momentum confirmed yet</span>`;
-  }
-}
-
-function addChartButton(symbol) {
-  const container = document.getElementById('chartSymbolBtns');
-  if (document.querySelector(`.chart-sym-btn[data-sym="${symbol}"]`)) return;
-  // Clear placeholder text on first button
-  if (container.querySelector('span')) container.innerHTML = '';
-  const btn = document.createElement('button');
-  btn.className = 'chart-sym-btn';
-  btn.dataset.sym = symbol;
-  btn.textContent = symbol;
-  btn.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#e0e6f0;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;';
-  btn.onclick = () => loadChart(symbol);
-  container.appendChild(btn);
-}
-
-// Auto-refresh chart every 30s if one is open
-setInterval(() => { if (currentSymbol) loadChart(currentSymbol); }, 30000);
-
-
+// Initial load
+refreshStatus();
 refreshSignals();
 refreshMacro();
-refreshDailySummary();
 
 // Auto refresh
 setInterval(refreshStatus,  10000);
 setInterval(refreshSignals, 15000);
-setInterval(refreshMacro,   60000);
-setInterval(refreshDailySummary, 30000);
+setInterval(refreshMacro,   60000);  // macro refreshes every minute
 </script>
 </body>
 </html>
