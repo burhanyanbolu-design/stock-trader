@@ -406,6 +406,16 @@ def run_cycle():
             if qty > 0:
                 place_order(sym, 'sell', qty, price)
 
+    # ── Skip trading on bearish AI sentiment ──
+    try:
+        briefing = get_dashboard_data()
+        sentiment = briefing.get('sentiment', 'neutral')
+        if sentiment == 'bearish':
+            log.info(f"AI sentiment bearish — skipping buy signals today")
+            buy_candidates = []
+    except:
+        pass
+
     # ── BUY — confidence-based position sizing ──
     # Tier 1 (score 3-4):              25% of MAX_POS — weak signal, small bet
     # Tier 2 (score 5-6):              50% of MAX_POS — moderate confidence
@@ -426,8 +436,8 @@ def run_cycle():
             break
 
         # Only trade MED tier and above — skip LOW confidence signals
-        if score < 5:
-            log.info(f"Skipping {sym} — score {score} too low (need 5+)")
+        if score < 7:
+            log.info(f"Skipping {sym} — score {score} too low (need 7+)")
             continue
 
         # Confidence tier
