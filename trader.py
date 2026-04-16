@@ -26,7 +26,7 @@ if BASE_URL and not BASE_URL.startswith('http'):
 MAX_POS             = float(os.getenv('MAX_POSITION_SIZE', 10000))
 MAX_DAILY_LOSS      = float(os.getenv('MAX_DAILY_LOSS', 2000))
 MAX_OPEN            = int(os.getenv('MAX_OPEN_POSITIONS', 10))
-DAILY_PROFIT_TARGET = float(os.getenv('DAILY_PROFIT_TARGET', 25))
+DAILY_PROFIT_TARGET = float(os.getenv('DAILY_PROFIT_TARGET', 500))
 STOP_LOSS_PCT       = float(os.getenv('STOP_LOSS_PCT', 1.2))
 TRAILING_STOP_PCT   = float(os.getenv('TRAILING_STOP_PCT', 0.5))
 TAKE_PROFIT_PCT     = float(os.getenv('TAKE_PROFIT_PCT', 2.5))  # exit at +2.5% per trade — 2:1 R:R
@@ -424,6 +424,11 @@ def run_cycle():
             break
         if buying_power < MAX_POS * 0.25:
             break
+
+        # Only trade MED tier and above — skip LOW confidence signals
+        if score < 5:
+            log.info(f"Skipping {sym} — score {score} too low (need 5+)")
+            continue
 
         # Confidence tier
         if score >= 9 and slc_fired:
