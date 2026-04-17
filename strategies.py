@@ -275,44 +275,20 @@ def candlestick_score(bars: pd.DataFrame) -> int:
 
 def combined_signal(bars: pd.DataFrame) -> str:
     """
-    Weighted voting system with stricter filters for higher win rate.
-    Requires score >= 4 (was 3) AND volume confirmation AND trend alignment.
+    Simplified weighted voting — score 3+ to trade.
+    Removed strict volume/trend/momentum gates that were blocking trades in bullish markets.
     """
     if len(bars) < 26:
         return 'HOLD'
 
     score = 0
 
-    # ── Volume confirmation ───────────────────────────────────────────────────
-    # Only trade when volume is 30% above 20-bar average (strong confirmation)
-    if 'volume' in bars.columns:
-        avg_vol = bars['volume'].rolling(20).mean().iloc[-1]
-        curr_vol = bars['volume'].iloc[-1]
-        vol_confirmed = curr_vol > avg_vol * 1.3  # must be 30% above average
-    else:
-        vol_confirmed = True  # skip if no volume data
-
-    # ── Overall trend filter (50-bar EMA) ────────────────────────────────────
-    # Only buy in uptrend, only sell in downtrend
-    close = bars['close']
-    if len(bars) >= 50:
-        ema50 = ema(close, 50).iloc[-1]
-        price = close.iloc[-1]
-        in_uptrend   = price > ema50
-        in_downtrend = price < ema50
-    else:
-        in_uptrend   = True
-        in_downtrend = True
-
-    # ── 3-Candle momentum confirmation (weight 3) — primary day trade trigger ─
-    # This is the core entry filter — requires 3 consecutive 5-min candles
-    # confirming direction before any signal is acted on
+    # ── 3-Candle momentum (weight 2) ─────────────────────────────────────────
     momentum = candle_momentum_score(bars)
-    score += momentum * 2  # double weight — this is the most important filter
+    score += momentum * 2
 
     # ── Candlestick patterns (weight 2) ──────────────────────────────────────
-    cs = candlestick_score(bars)
-    score += cs * 2
+    score += candlestick_score(bars) * 2
 
     # ── MACD (weight 2) ──────────────────────────────────────────────────────
     m = macd_signal(bars)
@@ -334,26 +310,20 @@ def combined_signal(bars: pd.DataFrame) -> str:
     if e == 'BUY':  score += 1
     if e == 'SELL': score -= 1
 
-    # ── RSI confirmation (weight 2) ──────────────────────────────────────────
-    # Tighter RSI bands — only trade genuinely oversold/overbought
+    # ── RSI (weight 2) ───────────────────────────────────────────────────────
     try:
         r = rsi(bars['close'])
-        if r < 35:   score += 2   # genuinely oversold — strong buy signal
-        elif r < 45: score += 1   # mildly oversold
-        elif r > 65: score -= 2   # genuinely overbought — strong sell signal
-        elif r > 55: score -= 1   # mildly overbought
+        if r < 40:   score += 2
+        elif r < 50: score += 1
+        elif r > 60: score -= 2
+        elif r > 50: score -= 1
     except:
         pass
 
-    # ── Final decision — score 5+ AND 3-candle momentum must confirm ─────────
-    # For BUY: need bullish 3-candle run OR at least 2-candle partial + high score
-    # For SELL: need bearish 3-candle run OR at least 2-candle partial + high score
-    bull_confirmed = momentum >= 1  # at least 2-candle partial bull
-    bear_confirmed = momentum <= -1  # at least 2-candle partial bear
-
-    if score >= 5 and vol_confirmed and in_uptrend and bull_confirmed:
+    # ── Decision — score 3+ to trade ─────────────────────────────────────────
+    if score >= 3:
         return 'BUY'
-    if score <= -5 and vol_confirmed and in_downtrend and bear_confirmed:
+    if score <= -3:
         return 'SELL'
     return 'HOLD'
 
