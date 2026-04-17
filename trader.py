@@ -413,6 +413,8 @@ def run_cycle():
         if sentiment == 'bearish':
             log.info(f"AI sentiment bearish — skipping buy signals today")
             buy_candidates = []
+        else:
+            log.info(f"AI sentiment: {sentiment} — buys allowed")
     except:
         pass
 
@@ -436,8 +438,8 @@ def run_cycle():
             break
 
         # Only trade MED tier and above — skip LOW confidence signals
-        if score < 7:
-            log.info(f"Skipping {sym} — score {score} too low (need 7+)")
+        if score < 5:
+            log.info(f"Skipping {sym} — score {score} too low (need 5+)")
             continue
 
         # Confidence tier
