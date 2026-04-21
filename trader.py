@@ -7,8 +7,15 @@ from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pytz
 import pandas as pd
-import alpaca_trade_api as tradeapi
 from dotenv import load_dotenv
+
+from alpaca.trading.client import TradingClient
+from alpaca.trading.requests import MarketOrderRequest
+from alpaca.trading.enums import OrderSide, TimeInForce
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.requests import StockBarsRequest
+from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+
 from strategies import get_signal_detail
 from ai_brain import get_current_watchlist, get_dashboard_data
 
@@ -19,9 +26,7 @@ log = logging.getLogger('trader')
 # ── Config ────────────────────────────────────────────────────────────────────
 API_KEY    = os.getenv('ALPACA_API_KEY')
 SECRET_KEY = os.getenv('ALPACA_SECRET_KEY')
-BASE_URL   = os.getenv('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets')
-if BASE_URL and not BASE_URL.startswith('http'):
-    BASE_URL = 'https://' + BASE_URL.lstrip('/')
+PAPER      = os.getenv('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets').startswith('https://paper')
 
 MAX_POS             = float(os.getenv('MAX_POSITION_SIZE', 10000))
 MAX_DAILY_LOSS      = float(os.getenv('MAX_DAILY_LOSS', 2000))
@@ -29,48 +34,51 @@ MAX_OPEN            = int(os.getenv('MAX_OPEN_POSITIONS', 10))
 DAILY_PROFIT_TARGET = float(os.getenv('DAILY_PROFIT_TARGET', 500))
 STOP_LOSS_PCT       = float(os.getenv('STOP_LOSS_PCT', 1.2))
 TRAILING_STOP_PCT   = float(os.getenv('TRAILING_STOP_PCT', 0.5))
-TAKE_PROFIT_PCT     = float(os.getenv('TAKE_PROFIT_PCT', 2.5))  # exit at +2.5% per trade — 2:1 R:R
+TAKE_PROFIT_PCT     = float(os.getenv('TAKE_PROFIT_PCT', 2.5))
 TRADE_LOG_FILE      = os.getenv('TRADE_LOG_FILE', 'trade_log.jsonl')
 
-# Broad watchlist — fallback when AI is unavailable
 WATCHLIST = [
-    # Mega-cap tech — highest volume daily movers
     'AAPL','MSFT','NVDA','TSLA','META','GOOGL','AMZN','AMD',
-    # Broad ETFs — always liquid, great for momentum
     'SPY','QQQ','IWM','ARKK','SMH',
-    # Finance
     'JPM','BAC','GS',
-    # Energy
     'XOM','CVX',
-    # Healthcare
     'UNH','LLY',
-    # Growth / momentum
     'PLTR','CRWD','COIN','MSTR','SHOP','NET','PANW',
-    # Fintech
     'V','MA',
-    # Defence
     'LMT','RTX',
-    # Gold
     'GLD','GDX',
-    # Airlines
     'DAL','UAL',
 ]
 
-api = None
-trade_log = []
-# entry_prices tracks buy prices so we can calculate realised PnL on sells
+# ── Clients ───────────────────────────────────────────────────────────────────
+_trading_client = None
+_data_client    = None
+
+trade_log    = []
 entry_prices: dict = {}
-# buy_times tracks when we entered a position to enforce minimum hold time
-buy_times: dict = {}
-# active_orders prevents duplicate buys when Alpaca hasn't settled yet
+buy_times:    dict = {}
 active_orders: set = set()
 
 status = {
-    'running': False, 'mode': 'PAPER',
+    'running': False, 'mode': 'PAPER' if PAPER else 'LIVE',
     'last_run': None, 'error': None,
     'target_hit': False, 'daily_pnl_peak': 0,
     'last_known_pnl': 0.0,
 }
+
+
+def get_trading_client() -> TradingClient:
+    global _trading_client
+    if _trading_client is None:
+        _trading_client = TradingClient(API_KEY, SECRET_KEY, paper=PAPER)
+    return _trading_client
+
+
+def get_data_client() -> StockHistoricalDataClient:
+    global _data_client
+    if _data_client is None:
+        _data_client = StockHistoricalDataClient(API_KEY, SECRET_KEY)
+    return _data_client
 
 
 def get_macro_briefing():
@@ -81,55 +89,60 @@ def get_dynamic_watchlist():
     return get_current_watchlist() or WATCHLIST
 
 
-def get_api():
-    global api
-    if api is None:
-        api = tradeapi.REST(API_KEY, SECRET_KEY, BASE_URL, api_version='v2')
-    return api
-
-
 def is_market_open() -> bool:
     try:
-        return get_api().get_clock().is_open
+        return get_trading_client().get_clock().is_open
     except Exception as e:
         log.warning(f"Clock check failed: {e}")
         return False
 
 
 def get_bars(symbol: str, timeframe='1Min', limit=100) -> pd.DataFrame:
-    """Fetch bars with exponential back-off on transient errors."""
+    tf_map = {
+        '1Min':  TimeFrame(1,  TimeFrameUnit.Minute),
+        '3Min':  TimeFrame(3,  TimeFrameUnit.Minute),
+        '5Min':  TimeFrame(5,  TimeFrameUnit.Minute),
+        '15Min': TimeFrame(15, TimeFrameUnit.Minute),
+        '1Hour': TimeFrame(1,  TimeFrameUnit.Hour),
+        '1Day':  TimeFrame(1,  TimeFrameUnit.Day),
+    }
+    tf = tf_map.get(timeframe, TimeFrame(1, TimeFrameUnit.Minute))
+
     for attempt, delay in enumerate([0, 1, 2, 4]):
         try:
             if delay:
                 time.sleep(delay)
             now   = datetime.now(pytz.UTC)
             start = now - timedelta(days=5)
-            bars  = get_api().get_bars(
-                symbol, timeframe,
-                start=start.isoformat(),
-                end=now.isoformat(),
+            req = StockBarsRequest(
+                symbol_or_symbols=symbol,
+                timeframe=tf,
+                start=start,
+                end=now,
                 limit=limit,
-                adjustment='raw',
-                feed='iex'
-            ).df
+                feed='iex',
+            )
+            bars = get_data_client().get_stock_bars(req).df
             if bars.empty:
                 return pd.DataFrame()
+            if isinstance(bars.index, pd.MultiIndex):
+                bars = bars.droplevel(0)
+            bars.index.name = 'timestamp'
             return bars[['open', 'high', 'low', 'close', 'volume']]
         except Exception as e:
             if attempt == 3:
-                log.warning(f"Bars failed for {symbol} after retries: {e}")
+                log.warning(f"Bars failed for {symbol}: {e}")
                 return pd.DataFrame()
             if '429' in str(e) or '503' in str(e):
-                log.warning(f"Bars {symbol} attempt {attempt+1} failed ({e}) — retrying in {delay}s")
+                log.warning(f"Bars {symbol} attempt {attempt+1} — retrying in {delay}s")
             else:
                 return pd.DataFrame()
     return pd.DataFrame()
 
 
 def get_bars_multi(symbol: str) -> dict:
-    """Fetch 1m, 3m, 5m bars for multi-timeframe analysis with small delay to avoid pool exhaustion."""
     bars_1m = get_bars(symbol, '1Min', limit=100)
-    time.sleep(0.15)  # 150ms between calls per symbol
+    time.sleep(0.15)
     bars_3m = get_bars(symbol, '3Min', limit=60)
     time.sleep(0.15)
     bars_5m = get_bars(symbol, '5Min', limit=50)
@@ -138,24 +151,24 @@ def get_bars_multi(symbol: str) -> dict:
 
 def get_positions() -> dict:
     try:
-        return {p.symbol: p for p in get_api().list_positions()}
-    except:
+        return {p.symbol: p for p in get_trading_client().get_all_positions()}
+    except Exception as e:
+        log.warning(f"get_positions failed: {e}")
         return {}
 
 
 def get_account():
-    """Fetch account with exponential back-off."""
     for attempt, delay in enumerate([0, 1, 2]):
         try:
             if delay:
                 time.sleep(delay)
-            return get_api().get_account()
+            return get_trading_client().get_account()
         except Exception as e:
             if attempt == 2:
-                log.warning(f"get_account failed after retries: {e}")
+                log.warning(f"get_account failed: {e}")
                 return None
             if '429' in str(e) or '503' in str(e):
-                log.warning(f"get_account attempt {attempt+1} failed — retrying in {delay}s")
+                log.warning(f"get_account attempt {attempt+1} — retrying")
             else:
                 return None
     return None
@@ -174,7 +187,6 @@ def daily_pnl() -> float:
 
 
 def _persist_trade(entry: dict):
-    """Append trade to disk so it survives restarts."""
     try:
         with open(TRADE_LOG_FILE, 'a') as f:
             f.write(json.dumps(entry) + '\n')
@@ -184,11 +196,15 @@ def _persist_trade(entry: dict):
 
 def place_order(symbol: str, side: str, qty: int, price: float = 0.0):
     try:
-        get_api().submit_order(
-            symbol=symbol, qty=qty, side=side,
-            type='market', time_in_force='day'
+        order_side = OrderSide.BUY if side == 'buy' else OrderSide.SELL
+        req = MarketOrderRequest(
+            symbol=symbol,
+            qty=qty,
+            side=order_side,
+            time_in_force=TimeInForce.DAY,
         )
-        log.info(f"{side} {qty}x {symbol} @ ~${price:.2f}")
+        get_trading_client().submit_order(req)
+        log.info(f"{side.upper()} {qty}x {symbol} @ ~${price:.2f}")
 
         entry = {
             'time':   datetime.now().strftime('%H:%M:%S'),
@@ -201,11 +217,10 @@ def place_order(symbol: str, side: str, qty: int, price: float = 0.0):
             'pnl':    None,
         }
 
-        # Calculate realised PnL on sells
         if side == 'sell' and symbol in entry_prices:
             cost_basis = entry_prices.pop(symbol)
             buy_times.pop(symbol, None)
-            realised   = (price - cost_basis) * qty
+            realised = (price - cost_basis) * qty
             entry['pnl'] = round(realised, 2)
             log.info(f"Realised PnL {symbol}: ${realised:+.2f}")
         elif side == 'buy':
@@ -229,36 +244,30 @@ def place_order(symbol: str, side: str, qty: int, price: float = 0.0):
 
 
 def _fetch_signal(symbol: str) -> dict | None:
-    """Fetch 1m/3m/5m bars and compute multi-timeframe signal for one symbol."""
     try:
-        tf_bars = get_bars_multi(symbol)
-        bars_1m = tf_bars['1m']
-        bars_3m = tf_bars['3m']
-        bars_5m = tf_bars['5m']
-        bars_htf = get_bars(symbol, '1Hour', limit=60)  # HTF for SLC structure
+        tf_bars  = get_bars_multi(symbol)
+        bars_1m  = tf_bars['1m']
+        bars_3m  = tf_bars['3m']
+        bars_5m  = tf_bars['5m']
+        bars_htf = get_bars(symbol, '1Hour', limit=60)
 
         if bars_1m.empty:
             return None
 
-        # Get signal detail from 5m timeframe — primary for 3-candle day trade system
         d = get_signal_detail(bars_5m if not bars_5m.empty else bars_1m)
         d['symbol'] = symbol
         d['price']  = float(bars_1m['close'].iloc[-1])
 
-        # Multi-timeframe confirmation — count how many TFs agree
         from strategies import combined_signal, slc_signal
         sig_1m = d['signal']
         sig_3m = combined_signal(bars_3m) if not bars_3m.empty else 'HOLD'
         sig_5m = combined_signal(bars_5m) if not bars_5m.empty else 'HOLD'
-
-        # SLC strategy signal
         sig_slc = slc_signal(bars_5m, bars_htf)
 
         tf_signals = [sig_1m, sig_3m, sig_5m]
         buy_count  = tf_signals.count('BUY')
         sell_count = tf_signals.count('SELL')
 
-        # Boost score when multiple timeframes agree
         if buy_count >= 2:
             d['signal'] = 'BUY'
             d['score']  = d.get('score', 0) + buy_count
@@ -270,7 +279,6 @@ def _fetch_signal(symbol: str) -> dict | None:
         elif sell_count == 1 and sig_1m == 'SELL':
             d['signal'] = 'SELL'
 
-        # SLC confirmation adds extra weight — strong bonus if it agrees
         if sig_slc == 'BUY':
             d['score'] = d.get('score', 0) + 3
             if d['signal'] != 'SELL':
@@ -299,11 +307,9 @@ def run_cycle():
 
     pnl = daily_pnl()
 
-    # ── Track peak P&L for trailing stop ──
     if pnl > status['daily_pnl_peak']:
         status['daily_pnl_peak'] = pnl
 
-    # ── Daily profit target ──
     if pnl >= DAILY_PROFIT_TARGET:
         if not status['target_hit']:
             log.info(f"Target hit! P&L: ${pnl:.2f} — closing all")
@@ -312,7 +318,6 @@ def run_cycle():
             status['error'] = f"Target hit! Locked in ${pnl:.2f} profit for today."
         return
 
-    # ── Trailing stop — only kicks in if we're very close to target ──
     peak = status['daily_pnl_peak']
     if peak >= DAILY_PROFIT_TARGET * 0.85 and pnl < peak * 0.80:
         if not status['target_hit']:
@@ -322,14 +327,12 @@ def run_cycle():
             status['error'] = f"Trailing stop. Peak: ${peak:.2f}, Now: ${pnl:.2f}"
         return
 
-    # ── Daily loss limit ──
     if pnl < -MAX_DAILY_LOSS:
         log.warning(f"Loss limit hit (${pnl:.2f})")
         close_all_positions()
         status['error'] = f"Loss limit hit: ${pnl:.2f}"
         return
 
-    # ── Close 15 mins before market close ──
     now_ny = datetime.now(pytz.timezone('America/New_York'))
     if now_ny.hour == 15 and now_ny.minute >= 45:
         log.info("15 mins to close — selling all")
@@ -342,7 +345,7 @@ def run_cycle():
         return
     buying_power = float(acct.buying_power)
 
-    # ── Stop-loss + Take-profit sweep ──
+    # Stop-loss + Take-profit sweep
     for sym, p in list(positions.items()):
         try:
             plpc  = float(p.unrealized_plpc) * 100
@@ -351,21 +354,18 @@ def run_cycle():
             if qty <= 0:
                 continue
 
-            # Dynamic take-profit: bigger positions get more room to run
-            cost  = float(p.avg_entry_price) * qty
+            cost = float(p.avg_entry_price) * qty
             if cost >= MAX_POS * 0.9:
-                tp = TAKE_PROFIT_PCT * 1.4   # MAX tier — target 3.5%
+                tp = TAKE_PROFIT_PCT * 1.4
             elif cost >= MAX_POS * 0.65:
-                tp = TAKE_PROFIT_PCT * 1.2   # HIGH tier — target 3.0%
+                tp = TAKE_PROFIT_PCT * 1.2
             else:
-                tp = TAKE_PROFIT_PCT          # LOW/MED — target 2.5%
+                tp = TAKE_PROFIT_PCT
 
-            # Take profit
             if plpc >= tp:
-                log.info(f"Take-profit: {sym} at +{plpc:.2f}% (target {tp:.1f}%) — locking in gains")
+                log.info(f"Take-profit: {sym} at +{plpc:.2f}%")
                 place_order(sym, 'sell', qty, price)
                 del positions[sym]
-            # Stop loss
             elif plpc <= -STOP_LOSS_PCT:
                 log.warning(f"Stop-loss: {sym} at {plpc:.2f}%")
                 place_order(sym, 'sell', qty, price)
@@ -373,10 +373,9 @@ def run_cycle():
         except Exception as e:
             log.warning(f"Stop-loss check failed {sym}: {e}")
 
-    # ── Parallel signal scan — throttled to avoid Alpaca connection pool exhaustion ──
+    # Parallel signal scan
     watchlist = get_current_watchlist() or WATCHLIST
     signals   = []
-    # 4 workers max — Alpaca free tier has 10 connection limit, 3 calls per symbol
     with ThreadPoolExecutor(max_workers=4) as pool:
         futures = {pool.submit(_fetch_signal, sym): sym for sym in watchlist}
         for future in as_completed(futures):
@@ -388,13 +387,11 @@ def run_cycle():
                               key=lambda x: x['score'], reverse=True)
     sell_candidates = [s for s in signals if s['signal'] == 'SELL']
 
-    # ── SELL ──
-    MIN_HOLD_SECONDS = 600  # must hold at least 10 minutes before selling on signal
-    now_utc = datetime.now(pytz.UTC).replace(tzinfo=None)
+    # Sell signals
+    MIN_HOLD_SECONDS = 600
     for s in sell_candidates:
         sym = s['symbol']
         if sym in positions:
-            # Enforce minimum hold time — skip signal sell, stop-loss still works
             bought_at = buy_times.get(sym)
             if bought_at:
                 held_secs = (datetime.now() - bought_at.replace(tzinfo=None)).total_seconds()
@@ -406,28 +403,24 @@ def run_cycle():
             if qty > 0:
                 place_order(sym, 'sell', qty, price)
 
-    # ── Skip trading on bearish AI sentiment ──
+    # Skip buys on bearish AI sentiment
     try:
-        briefing = get_dashboard_data()
+        briefing  = get_dashboard_data()
         sentiment = briefing.get('sentiment', 'neutral')
         if sentiment == 'bearish':
-            log.info(f"AI sentiment bearish — skipping buy signals today")
+            log.info("AI sentiment bearish — skipping buy signals")
             buy_candidates = []
         else:
             log.info(f"AI sentiment: {sentiment} — buys allowed")
     except:
         pass
 
-    # ── BUY — confidence-based position sizing ──
-    # Tier 1 (score 3-4):              25% of MAX_POS — weak signal, small bet
-    # Tier 2 (score 5-6):              50% of MAX_POS — moderate confidence
-    # Tier 3 (score 7-8):              75% of MAX_POS — strong signal
-    # Tier 4 (score 9+ AND SLC fired): 100% of MAX_POS — maximum conviction, bet big
+    # Buy signals with confidence-based sizing
     pending_buys: set = set()
     for s in buy_candidates:
-        sym   = s['symbol']
-        price = s['price']
-        score = s.get('score', 3)
+        sym       = s['symbol']
+        price     = s['price']
+        score     = s.get('score', 3)
         slc_fired = s.get('tf_slc') == 'BUY'
 
         if sym in positions or sym in pending_buys:
@@ -436,29 +429,20 @@ def run_cycle():
             break
         if buying_power < MAX_POS * 0.25:
             break
-
-        # Only trade MED tier and above — skip LOW confidence signals
         if score < 5:
             log.info(f"Skipping {sym} — score {score} too low (need 5+)")
             continue
 
-        # Confidence tier
         if score >= 9 and slc_fired:
-            # Maximum conviction — all systems agree including SLC structure+level+confirmation
-            size_ratio = 1.0
-            tier = 'MAX'
+            size_ratio, tier = 1.0, 'MAX'
         elif score >= 7:
-            size_ratio = 0.75
-            tier = 'HIGH'
+            size_ratio, tier = 0.75, 'HIGH'
         elif score >= 5:
-            size_ratio = 0.50
-            tier = 'MED'
+            size_ratio, tier = 0.50, 'MED'
         else:
-            size_ratio = 0.25
-            tier = 'LOW'
+            size_ratio, tier = 0.25, 'LOW'
 
         pos_size = MAX_POS * size_ratio
-
         if buying_power < pos_size:
             continue
 
@@ -485,7 +469,7 @@ def close_all_positions():
 def start_bot():
     status['running']    = True
     status['target_hit'] = False
-    log.info("Bot started — paper trading mode")
+    log.info("Bot started")
     while status['running']:
         try:
             run_cycle()
