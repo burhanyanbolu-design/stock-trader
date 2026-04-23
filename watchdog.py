@@ -15,7 +15,7 @@ log = logging.getLogger('watchdog')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 # ── Config ────────────────────────────────────────────────────────────────────
-APP_URL          = os.getenv('WATCHDOG_APP_URL', 'https://just-quietude-production.up.railway.app')
+APP_URL          = os.getenv('WATCHDOG_APP_URL', 'https://just-quietude-production-f0d1.up.railway.app')
 API_KEY          = os.getenv('ALPACA_API_KEY')
 SECRET_KEY       = os.getenv('ALPACA_SECRET_KEY')
 PAPER            = os.getenv('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets').startswith('https://paper')
@@ -37,20 +37,14 @@ def get_trading_client():
 # ── App health ────────────────────────────────────────────────────────────────
 def check_app_health() -> dict | None:
     try:
-        r = requests.get(f'{APP_URL}/', timeout=10)
+        r = requests.get(f'{APP_URL}/api/status', timeout=10)
         if r.status_code != 200:
             log.error(f'❌ App returned HTTP {r.status_code}')
             return None
         log.info('✅ App is reachable')
-    except Exception as e:
-        log.error(f'❌ App unreachable: {e}')
-        return None
-
-    try:
-        r = requests.get(f'{APP_URL}/api/status', timeout=10)
         return r.json()
     except Exception as e:
-        log.error(f'❌ Status fetch failed: {e}')
+        log.error(f'❌ App unreachable: {e}')
         return None
 
 
