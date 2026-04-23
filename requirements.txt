@@ -9,3 +9,4 @@ apscheduler
 requests
 pytz
 openai
+yfinance

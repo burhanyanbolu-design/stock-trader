@@ -58,6 +58,9 @@ trade_log    = []
 entry_prices: dict = {}
 buy_times:    dict = {}
 active_orders: set = set()
+# sell_times tracks when we last sold a symbol to prevent wash trades
+sell_times: dict = {}
+WASH_TRADE_COOLDOWN = 120  # seconds to wait after selling before re-buying
 
 status = {
     'running': False, 'mode': 'PAPER' if PAPER else 'LIVE',
@@ -223,6 +226,7 @@ def place_order(symbol: str, side: str, qty: int, price: float = 0.0):
             realised = (price - cost_basis) * qty
             entry['pnl'] = round(realised, 2)
             log.info(f"Realised PnL {symbol}: ${realised:+.2f}")
+            sell_times[symbol] = datetime.now()  # track sell time for wash trade prevention
         elif side == 'buy':
             entry_prices[symbol] = price
             buy_times[symbol] = datetime.now()
@@ -425,6 +429,13 @@ def run_cycle():
 
         if sym in positions or sym in pending_buys:
             continue
+        # Wash trade prevention — don't re-buy within cooldown period
+        last_sell = sell_times.get(sym)
+        if last_sell:
+            secs_since_sell = (datetime.now() - last_sell).total_seconds()
+            if secs_since_sell < WASH_TRADE_COOLDOWN:
+                log.info(f"Wash trade cooldown: skipping {sym} — sold {secs_since_sell:.0f}s ago (need {WASH_TRADE_COOLDOWN}s)")
+                continue
         if len(positions) + len(pending_buys) >= MAX_OPEN:
             break
         if buying_power < MAX_POS * 0.25:

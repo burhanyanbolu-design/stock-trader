@@ -29,32 +29,19 @@ SYMBOLS = [
 ]
 
 
-def get_api():
-    import alpaca_trade_api as tradeapi
-    return tradeapi.REST(
-        os.getenv('ALPACA_API_KEY'),
-        os.getenv('ALPACA_SECRET_KEY'),
-        os.getenv('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets'),
-        api_version='v2'
-    )
-
-
 def fetch_historical(symbol: str, days: int = LOOKBACK_DAYS,
                      timeframe: str = '1Day') -> pd.DataFrame:
     try:
-        api   = get_api()
+        import yfinance as yf
         end   = datetime.now(pytz.UTC)
         start = end - timedelta(days=days)
-        bars  = api.get_bars(
-            symbol, timeframe,
-            start=start.isoformat(),
-            end=end.isoformat(),
-            adjustment='raw',
-            feed='iex'
-        ).df
-        if bars.empty:
+        interval = '1d' if timeframe == '1Day' else '1m'
+        df = yf.download(symbol, start=start, end=end,
+                         interval=interval, progress=False, auto_adjust=True)
+        if df.empty:
             return pd.DataFrame()
-        return bars[['open','high','low','close','volume']].copy()
+        df.columns = [c.lower() for c in df.columns]
+        return df[['open', 'high', 'low', 'close', 'volume']].copy()
     except Exception as e:
         log.warning(f"Fetch failed {symbol}: {e}")
         return pd.DataFrame()
