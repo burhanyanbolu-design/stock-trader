@@ -15,7 +15,7 @@ log = logging.getLogger('watchdog')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 # ── Config ────────────────────────────────────────────────────────────────────
-APP_URL          = os.getenv('WATCHDOG_APP_URL', 'https://just-quietude-production-f0d1.up.railway.app')
+APP_URL          = os.getenv('WATCHDOG_APP_URL', 'https://stock-trader-production-924f.up.railway.app')
 API_KEY          = os.getenv('ALPACA_API_KEY')
 SECRET_KEY       = os.getenv('ALPACA_SECRET_KEY')
 PAPER            = os.getenv('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets').startswith('https://paper')
